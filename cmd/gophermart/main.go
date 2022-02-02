@@ -15,7 +15,7 @@ func main() {
 	router.Use(midleware.JWTAuthentication)
 
 	router.Route("api/user", func(r chi.Router) {
-		r.Post("/register", handlers.Signup)
+		r.Post("/register", handlers.CreateAccount)
 	})
 
 	c := cfg.GetConfig()
