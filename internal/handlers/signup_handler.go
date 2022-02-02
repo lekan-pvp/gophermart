@@ -6,11 +6,12 @@ import (
 	"net/http"
 )
 
-//Signup...
-func Signup(w http.ResponseWriter, r *http.Request) {
-	creds := &models.Credentials{}
-	if err := json.NewDecoder(r.Body).Decode(creds); err != nil {
-		w.WriteHeader(400)
+var CreateAccount = func(w http.ResponseWriter, r *http.Request) {
+	account := &models.Account{}
+	err := json.NewDecoder(r.Body).Decode(account)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
 		return
 	}
+
 }
