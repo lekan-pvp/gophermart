@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/utils"
 	"net/http"
 )
 
@@ -14,4 +15,7 @@ var CreateAccount = func(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp := account.Create()
+
+	utils.Respond(w, resp)
 }
