@@ -26,7 +26,7 @@ var JWTAuthentication = func(next http.Handler) http.Handler {
 		tokenHeader := r.Header.Get("Authorization")
 
 		if tokenHeader == "" {
-			response = utils.Message(false, "Missing auth token")
+			response = utils.Message(false, 401, "Missing auth token")
 			w.WriteHeader(401)
 			w.Header().Add("Content-Type", "application/json")
 			utils.Respond(w, response)
@@ -35,7 +35,7 @@ var JWTAuthentication = func(next http.Handler) http.Handler {
 
 		splitted := strings.Split(tokenHeader, " ")
 		if len(splitted) != 2 {
-			response = utils.Message(false, "Invalid/Malformed auth token")
+			response = utils.Message(false, 401, "Invalid/Malformed auth token")
 			w.WriteHeader(401)
 			w.Header().Add("Content-Type", "application/json")
 			utils.Respond(w, response)
@@ -50,7 +50,7 @@ var JWTAuthentication = func(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			response = utils.Message(false, "Malfarmed authentication token")
+			response = utils.Message(false, 401, "Malfarmed authentication token")
 			w.WriteHeader(401)
 			w.Header().Add("Content-Type", "application/json")
 			utils.Respond(w, response)
@@ -58,7 +58,7 @@ var JWTAuthentication = func(next http.Handler) http.Handler {
 		}
 
 		if !token.Valid {
-			response = utils.Message(false, "Token is not valid")
+			response = utils.Message(false, 401, "Token is not valid")
 			w.WriteHeader(401)
 			w.Header().Add("Content-Type", "application/json")
 			utils.Respond(w, response)
