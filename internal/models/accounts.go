@@ -22,7 +22,10 @@ type Account struct {
 }
 
 func (account *Account) Validate(ctx context.Context) (map[string]interface{}, bool) {
-	db := ctx.Value("DB").(*gorm.DB)
+	db, ok := ctx.Value("DB").(*gorm.DB)
+	if !ok {
+		return utils.Message(false, 500, "error db connection"), false
+	}
 	temp := &Account{}
 	//проверка на наличие ошибок и дубликатов
 	err := db.Table("users").Where("login = ?", account.Login).First(temp).Error
@@ -42,7 +45,10 @@ func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
 		return resp
 	}
 
-	db := ctx.Value("DB").(*gorm.DB)
+	db, ok := ctx.Value("DB").(*gorm.DB)
+	if !ok {
+		return utils.Message(false, 500, "error db connection")
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -68,9 +74,13 @@ func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
 	return response
 }
 
-func GetUser(u uint) *Account {
+func GetUser(ctx context.Context, u uint) *Account {
 	acc := &Account{}
-	GetDB().Table("users").Where("id = ?", u).First(acc)
+	db, ok := ctx.Value("DB").(*gorm.DB)
+	if !ok {
+		return nil
+	}
+	db.Table("users").Where("id = ?", u).First(acc)
 	if acc.Login == "" {
 		return nil
 	}

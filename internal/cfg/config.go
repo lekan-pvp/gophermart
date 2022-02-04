@@ -15,12 +15,13 @@ type Config struct {
 }
 
 var db *gorm.DB
-var instance Config
+var instance *Config
 
 func init() {
 	log.Println("init cfg...")
-	instance = Config{}
+	instance = &Config{}
 	if err := env.Parse(instance); err != nil {
+		log.Println("?")
 		log.Fatal(err)
 	}
 
@@ -47,5 +48,5 @@ func GetDB() *gorm.DB {
 }
 
 func GetConfig() Config {
-	return instance
+	return *instance
 }
