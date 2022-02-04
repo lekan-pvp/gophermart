@@ -3,8 +3,9 @@ package cfg
 import (
 	"flag"
 	"github.com/caarlos0/env"
-	_ "github.com/lib/pq"
-	"github.com/jmoiron/sqlx"
+	"github.com/lekan/gophermart/internal/models"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"log"
 )
 
@@ -13,13 +14,7 @@ type Config struct {
 	DatabaseURI string `env:"DATABASE_URI" envDefault:"postgres://postgres:871023@localhost:5432/gophermart_db"`
 }
 
-var schema = `
-	CREATE users (
-		login text,
-		password text
-)`
-
-var db *sqlx.DB
+var db *gorm.DB
 var instance Config
 
 func init() {
@@ -36,17 +31,18 @@ func init() {
 
 	instance.RunAddress = *runAddress
 	instance.DatabaseURI = *databaseURI
-
-	db, err := sqlx.Connect("postgres", *databaseURI)
+	db, err := gorm.Open(postgres.Open(instance.DatabaseURI), &gorm.Config{})
 	if err != nil {
-		log.Fatal(err)
+		panic("failed to connect database")
 	}
 
-	db.MustExec(schema)
-
+	err = db.AutoMigrate(&models.Account{})
+	if err != nil {
+		panic("failed to migrate scheme")
+	}
 }
 
-func GetDB() *sqlx.DB {
+func GetDB() *gorm.DB {
 	return db
 }
 

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"github.com/golang-jwt/jwt"
 	"github.com/lekan/gophermart/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -20,8 +21,8 @@ type Account struct {
 	Token    string `json:"token" sql:"-"`
 }
 
-func (account *Account) Validate() (map[string]interface{}, bool) {
-	db := GetDB()
+func (account *Account) Validate(ctx context.Context) (map[string]interface{}, bool) {
+	db := ctx.Value("DB").(*gorm.DB)
 	temp := &Account{}
 	//проверка на наличие ошибок и дубликатов
 	err := db.Table("users").Where("login = ?", account.Login).First(temp).Error
@@ -36,10 +37,12 @@ func (account *Account) Validate() (map[string]interface{}, bool) {
 	return utils.Message(false, 200, "Requirement passed"), true
 }
 
-func (account *Account) Create() map[string]interface{} {
-	if resp, ok := account.Validate(); !ok {
+func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
+	if resp, ok := account.Validate(ctx); !ok {
 		return resp
 	}
+
+	db := ctx.Value("DB").(*gorm.DB)
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -47,7 +50,7 @@ func (account *Account) Create() map[string]interface{} {
 	}
 	account.Password = string(hashedPassword)
 
-	GetDB().Create(account)
+	db.Create(account)
 	if account.ID <= 0 {
 		return utils.Message(false, 500, "Failed to create user, connection error.")
 	}

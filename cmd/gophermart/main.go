@@ -13,8 +13,9 @@ import (
 func main() {
 	router := chi.NewRouter()
 	router.Use(midleware.JWTAuthentication)
+	router.Use(midleware.SetDBMiddleware)
 
-	router.Route("api/user", func(r chi.Router) {
+	router.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", handlers.CreateAccount)
 	})
 
