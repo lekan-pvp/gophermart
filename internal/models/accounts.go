@@ -21,13 +21,10 @@ type Account struct {
 }
 
 func (account *Account) Validate() (map[string]interface{}, bool) {
-	if len(account.Password) < 6 {
-		return utils.Message(false, 401, "Password is required"), false
-	}
-
+	db := GetDB()
 	temp := &Account{}
 	//проверка на наличие ошибок и дубликатов
-	err := GetDB().Table("users").Where("login = ?", account.Login).First(temp).Error
+	err := db.Table("users").Where("login = ?", account.Login).First(temp).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return utils.Message(false, 500, err.Error()), false
 	}
@@ -46,7 +43,7 @@ func (account *Account) Create() map[string]interface{} {
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return utils.Message(false, 500, "Bcrypt error")
+		return utils.Message(false, 500, err.Error())
 	}
 	account.Password = string(hashedPassword)
 
@@ -59,7 +56,7 @@ func (account *Account) Create() map[string]interface{} {
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
 	tokenString, err := token.SignedString([]byte(os.Getenv("token_password")))
 	if err != nil {
-		return utils.Message(false, 500, "Error tokenize")
+		return utils.Message(false, 500, err.Error())
 	}
 	account.Token = tokenString
 	account.Password = ""
