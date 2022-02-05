@@ -1,10 +1,11 @@
-package midleware
+package mware
 
 import (
 	"context"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/lekan/gophermart/internal/models"
 	"github.com/lekan/gophermart/internal/utils"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -12,11 +13,13 @@ import (
 
 var JWTAuthentication = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		notAuth := []string{"/api/user/register", "api/user/login"}
+
+		notAuth := []string{"/api/user/register", "/api/user/login"}
 		requestPath := r.URL.Path
 
 		for _, value := range notAuth {
 			if value == requestPath {
+				log.Printf("value = %s, requestValue = %s", value, requestPath)
 				next.ServeHTTP(w, r)
 				return
 			}

@@ -2,42 +2,66 @@ package models
 
 import (
 	"context"
+	"errors"
 	"github.com/golang-jwt/jwt"
+	"github.com/jmoiron/sqlx"
 	"github.com/lekan/gophermart/internal/utils"
+	_ "github.com/lib/pq"
+	"github.com/omeid/pgerror"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
+	"log"
 	"os"
 )
 
 type Token struct {
-	UserID uint
+	UserID int
 	jwt.Claims
 }
 
 type Account struct {
-	gorm.Model
-	Login    string `json:"login"`
-	Password string `json:"password"`
-	Token    string `json:"token" sql:"-"`
+	Login    string `json:"login" db:"user_login"`
+	Password string `json:"password" db:"user_password"`
+	Token    string `json:"token" db:"-"`
+}
+
+var db *sqlx.DB
+
+var schema = `
+CREATE TABLE IF NOT EXISTS users(
+    id SERIAL,
+	user_login VARCHAR NOT NULL,
+	user_password VARCHAR NOT NULL,
+	PRIMARY KEY (id),
+    UNIQUE (user_login)
+)`
+
+func InitDB(databaseURI string) error {
+	db = sqlx.MustConnect("postgres", databaseURI)
+
+	db.MustExec(schema)
+
+	log.Println("create db is done...")
+	return db.Ping()
 }
 
 func (account *Account) Validate(ctx context.Context) (map[string]interface{}, bool) {
-	db, ok := ctx.Value("DB").(*gorm.DB)
-	if !ok {
-		return utils.Message(false, 500, "error db connection"), false
-	}
 	temp := &Account{}
+
 	//проверка на наличие ошибок и дубликатов
-	err := db.Table("users").Where("login = ?", account.Login).First(temp).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return utils.Message(false, 500, err.Error()), false
+	err := db.QueryRowxContext(ctx, `SELECT user_login, user_password FROM users WHERE user_login = $1`, account.Login).Scan(&temp.Login, &temp.Password)
+	if err != nil {
+		if e := pgerror.CaseNotFound(err); e != nil {
+			return utils.Message(false, 200, e.Error()), true
+		}
+		return utils.Message(false, 500, err.Error()), true
 	}
 
 	if temp.Login != "" {
-		return utils.Message(false, 409, err.Error()), false
+		return utils.Message(false, 409, "duplicate"), false
 	}
 
-	return utils.Message(false, 200, "Requirement passed"), true
+	log.Println("In Validate: DB is initiate")
+	return utils.Message(true, 409, "Requirement passed"), false
 }
 
 func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
@@ -45,10 +69,7 @@ func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
 		return resp
 	}
 
-	db, ok := ctx.Value("DB").(*gorm.DB)
-	if !ok {
-		return utils.Message(false, 500, "error db connection")
-	}
+	log.Println("In CreateUser: DB is initiate")
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -56,12 +77,13 @@ func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
 	}
 	account.Password = string(hashedPassword)
 
-	db.Create(account)
-	if account.ID <= 0 {
-		return utils.Message(false, 500, "Failed to create user, connection error.")
+	var id int
+	err = db.QueryRowxContext(ctx, `INSERT INTO users (user_login, user_password) VALUES ($1, $2) RETURNING id`, account.Login, account.Password).Scan(&id)
+	if err != nil {
+		return utils.Message(false, 500, "wrong INSERT...")
 	}
 
-	tk := &Token{UserID: account.ID}
+	tk := &Token{UserID: id}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
 	tokenString, err := token.SignedString([]byte(os.Getenv("token_password")))
 	if err != nil {
@@ -74,16 +96,15 @@ func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
 	return response
 }
 
-func GetUser(ctx context.Context, u uint) *Account {
+func GetUser(ctx context.Context, login uint) (*Account, error) {
 	acc := &Account{}
-	db, ok := ctx.Value("DB").(*gorm.DB)
-	if !ok {
-		return nil
+
+	err := db.QueryRowxContext(ctx, `SELECT user_login, user_password FROM users WHERE user_login = $1`, login).Scan(acc.Login, acc.Password)
+	if err != nil {
+		return nil, err
 	}
-	db.Table("users").Where("id = ?", u).First(acc)
 	if acc.Login == "" {
-		return nil
+		return nil, errors.New("Find nothing")
 	}
-	acc.Password = ""
-	return acc
+	return acc, nil
 }

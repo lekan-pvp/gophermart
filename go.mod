@@ -16,6 +16,7 @@ require (
 require (
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.1 // indirect
+	github.com/jackc/pgerrcode v0.0.0-20201024163028-a0d42d470451 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.2.0 // indirect
@@ -26,5 +27,6 @@ require (
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/lib/pq v1.10.2 // indirect
+	github.com/omeid/pgerror v0.0.0-20201018020948-42c66c4d27d4 // indirect
 	golang.org/x/text v0.3.7 // indirect
 )
