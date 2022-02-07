@@ -2,15 +2,14 @@ package models
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
-	"github.com/lekan/gophermart/internal/utils"
 	_ "github.com/lib/pq"
-	"github.com/omeid/pgerror"
 	"golang.org/x/crypto/bcrypt"
 	"log"
-	"os"
 )
 
 type Token struct {
@@ -18,10 +17,9 @@ type Token struct {
 	jwt.Claims
 }
 
-type Account struct {
-	Login    string `json:"login" db:"user_login"`
-	Password string `json:"password" db:"user_password"`
-	Token    string `json:"token" db:"-"`
+type Credentials struct {
+	Login    string `json:"login" db:"username"`
+	Password string `json:"password" db:"password"`
 }
 
 var db *sqlx.DB
@@ -29,10 +27,10 @@ var db *sqlx.DB
 var schema = `
 CREATE TABLE IF NOT EXISTS users(
     id SERIAL,
-	user_login VARCHAR NOT NULL,
-	user_password VARCHAR NOT NULL,
+	username VARCHAR NOT NULL,
+	password VARCHAR NOT NULL,
 	PRIMARY KEY (id),
-    UNIQUE (user_login)
+    UNIQUE (username)
 )`
 
 func InitDB(databaseURI string) error {
@@ -44,67 +42,43 @@ func InitDB(databaseURI string) error {
 	return db.Ping()
 }
 
-func (account *Account) Validate(ctx context.Context) (map[string]interface{}, bool) {
-	temp := &Account{}
-
-	//проверка на наличие ошибок и дубликатов
-	err := db.QueryRowxContext(ctx, `SELECT user_login, user_password FROM users WHERE user_login = $1`, account.Login).Scan(&temp.Login, &temp.Password)
-	if err != nil {
-		if e := pgerror.CaseNotFound(err); e != nil {
-			return utils.Message(false, 200, e.Error()), true
+func Validate(ctx context.Context, creds *Credentials) bool {
+	var username string
+	if err := db.GetContext(ctx, &username, `SELECT username FROM users WHERE username = $1`, creds.Login); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true
 		}
-		return utils.Message(false, 500, err.Error()), true
+		return false
 	}
 
-	if temp.Login != "" {
-		return utils.Message(false, 409, "duplicate"), false
+	if username != "" {
+		return false
 	}
-
-	log.Println("In Validate: DB is initiate")
-	return utils.Message(true, 409, "Requirement passed"), false
+	return true
 }
 
-func (account *Account) CreateUser(ctx context.Context) map[string]interface{} {
-	if resp, ok := account.Validate(ctx); !ok {
-		return resp
+func Signup(ctx context.Context, creds *Credentials) error {
+	if !Validate(ctx, creds) {
+		return fmt.Errorf("409 %w", errors.New("Login in use"))
 	}
 
-	log.Println("In CreateUser: DB is initiate")
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(account.Password), bcrypt.DefaultCost)
+	err := db.QueryRowxContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
 	if err != nil {
-		return utils.Message(false, 500, err.Error())
-	}
-	account.Password = string(hashedPassword)
 
-	var id int
-	err = db.QueryRowxContext(ctx, `INSERT INTO users (user_login, user_password) VALUES ($1, $2) RETURNING id`, account.Login, account.Password).Scan(&id)
-	if err != nil {
-		return utils.Message(false, 500, "wrong INSERT...")
 	}
 
-	tk := &Token{UserID: id}
-	token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), tk)
-	tokenString, err := token.SignedString([]byte(os.Getenv("token_password")))
-	if err != nil {
-		return utils.Message(false, 500, err.Error())
-	}
-	account.Token = tokenString
-	account.Password = ""
-	response := utils.Message(true, 200, "Account has been created")
-	response["account"] = account
-	return response
+	return nil
 }
 
-func GetUser(ctx context.Context, login uint) (*Account, error) {
-	acc := &Account{}
+func Signin(ctx context.Context, creds *Credentials) error {
+	temp := &Credentials{}
+	if err := db.GetContext(ctx, temp, `SELECT username, password FROM users WHERE username = $1 RETURNING`, creds.Login); err != nil {
+		return err
+	}
 
-	err := db.QueryRowxContext(ctx, `SELECT user_login, user_password FROM users WHERE user_login = $1`, login).Scan(acc.Login, acc.Password)
-	if err != nil {
-		return nil, err
+	if err := bcrypt.CompareHashAndPassword([]byte(temp.Password), []byte(creds.Password)); err != nil {
+		return err
 	}
-	if acc.Login == "" {
-		return nil, errors.New("Find nothing")
-	}
-	return acc, nil
+
+	return nil
 }

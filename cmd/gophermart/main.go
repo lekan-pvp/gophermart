@@ -7,7 +7,6 @@ import (
 	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/handlers"
 	"github.com/lekan/gophermart/internal/models"
-	"github.com/lekan/gophermart/internal/mware"
 	"log"
 	"net/http"
 )
@@ -21,11 +20,11 @@ func main() {
 	}
 
 	router := chi.NewRouter()
-	router.Use(mware.JWTAuthentication)
 	router.Use(middleware.Logger)
 
 	router.Route("/api/user", func(r chi.Router) {
-		r.Post("/register", handlers.CreateAccount)
+		r.Post("/register", handlers.Signup)
+		r.Post("/login", handlers.Signin)
 	})
 
 	log.Println("running server...")
