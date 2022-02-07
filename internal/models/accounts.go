@@ -2,8 +2,6 @@ package models
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
@@ -42,29 +40,29 @@ func InitDB(databaseURI string) error {
 	return db.Ping()
 }
 
-func Validate(ctx context.Context, creds *Credentials) bool {
-	var username string
-	if err := db.GetContext(ctx, &username, `SELECT username FROM users WHERE username = $1`, creds.Login); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return true
-		}
-		return false
-	}
-
-	if username != "" {
-		return false
-	}
-	return true
-}
+//func Validate(ctx context.Context, creds *Credentials) bool {
+//	var username string
+//	if err := db.GetContext(ctx, &username, `SELECT username FROM users WHERE username = $1`, creds.Login); err != nil {
+//		if errors.Is(err, sql.ErrNoRows) {
+//			return true
+//		}
+//		return false
+//	}
+//
+//	if username != "" {
+//		return false
+//	}
+//	return true
+//}
 
 func Signup(ctx context.Context, creds *Credentials) error {
-	if !Validate(ctx, creds) {
-		return fmt.Errorf("409 %w", errors.New("Login in use"))
-	}
+	//if !Validate(ctx, creds) {
+	//	return fmt.Errorf("409 %w", errors.New("Login in use"))
+	//}
 
-	err := db.QueryRowxContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
+	_, err := db.ExecContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
 	if err != nil {
-
+		return fmt.Errorf("409 %w", err)
 	}
 
 	return nil
