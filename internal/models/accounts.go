@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
+	"github.com/lekan/gophermart/internal/logger"
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
-	"log"
 )
 
 type Token struct {
@@ -21,6 +20,7 @@ type Credentials struct {
 }
 
 var db *sqlx.DB
+var log = logger.GetLogger()
 
 var schema = `
 CREATE TABLE IF NOT EXISTS users(
@@ -36,30 +36,11 @@ func InitDB(databaseURI string) error {
 
 	db.MustExec(schema)
 
-	log.Println("create db is done...")
+	log.Info().Msg("create db is done...")
 	return db.Ping()
 }
 
-//func Validate(ctx context.Context, creds *Credentials) bool {
-//	var username string
-//	if err := db.GetContext(ctx, &username, `SELECT username FROM users WHERE username = $1`, creds.Login); err != nil {
-//		if errors.Is(err, sql.ErrNoRows) {
-//			return true
-//		}
-//		return false
-//	}
-//
-//	if username != "" {
-//		return false
-//	}
-//	return true
-//}
-
 func Signup(ctx context.Context, creds *Credentials) error {
-	//if !Validate(ctx, creds) {
-	//	return fmt.Errorf("409 %w", errors.New("Login in use"))
-	//}
-
 	_, err := db.ExecContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
 	if err != nil {
 		return fmt.Errorf("409 %w", err)
@@ -70,11 +51,7 @@ func Signup(ctx context.Context, creds *Credentials) error {
 
 func Signin(ctx context.Context, creds *Credentials) error {
 	temp := &Credentials{}
-	if err := db.GetContext(ctx, temp, `SELECT username, password FROM users WHERE username = $1 RETURNING`, creds.Login); err != nil {
-		return err
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(temp.Password), []byte(creds.Password)); err != nil {
+	if err := db.GetContext(ctx, temp, `SELECT username, password FROM users WHERE username = $1`, creds.Login); err != nil {
 		return err
 	}
 

@@ -3,7 +3,7 @@ package cfg
 import (
 	"flag"
 	"github.com/caarlos0/env"
-	"log"
+	"github.com/lekan/gophermart/internal/logger"
 )
 
 type Config struct {
@@ -14,11 +14,11 @@ type Config struct {
 var instance *Config
 
 func init() {
-	log.Println("init cfg...")
+	log := logger.GetLogger()
+	log.Info().Msg("set up config...")
 	instance = &Config{}
 	if err := env.Parse(instance); err != nil {
-		log.Println("?")
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("can not parse instance")
 	}
 
 	runAddress := flag.String("a", instance.RunAddress, "адрес и порт запуска сервиса")

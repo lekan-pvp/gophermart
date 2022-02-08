@@ -1,22 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/handlers"
+	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/models"
-	"log"
 	"net/http"
 )
 
 func main() {
 	c := cfg.GetConfig()
+	log := logger.GetLogger()
 
 	err := models.InitDB(c.DatabaseURI)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	router := chi.NewRouter()
@@ -27,9 +27,9 @@ func main() {
 		r.Post("/login", handlers.Signin)
 	})
 
-	log.Println("running server...")
+	log.Info().Msg("server is up...")
 	err = http.ListenAndServe(c.RunAddress, router)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal().Err(err)
 	}
 }
