@@ -9,6 +9,7 @@ import (
 	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/models"
 	"github.com/lekan/gophermart/internal/sessions"
+	"io"
 	"net/http"
 	"time"
 )
@@ -27,6 +28,7 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	// сохраняем в базу данных
 	err := models.Signup(ctx, creds)
@@ -49,7 +51,8 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// записываем токен в сессию и сохраняем сессию
-	session.Values["token"] = creds.Login
+	session.Values["authenticated"] = true
+	session.Values["login"] = creds.Login
 	err = session.Save(r, w)
 	if err != nil {
 		log.Err(err).Msg("Save session error")
@@ -73,6 +76,7 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	// ищем в базе данных
 	err := models.Signin(ctx, creds)
@@ -94,7 +98,8 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session.Values["token"] = creds.Login
+	session.Values["authenticated"] = true
+	session.Values["login"] = creds.Login
 	err = session.Save(r, w)
 	if err != nil {
 		log.Err(err).Msg("save session error")
@@ -104,4 +109,50 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Context-Type", "application/json")
 	w.WriteHeader(200)
+}
+
+func Orders(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		log.Err(err).Msg("take body error")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	ok, err := models.Luna(body)
+	if err != nil {
+		log.Err(err).Msg("convert number error")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		log.Info().Msg("wrong order number format")
+		w.WriteHeader(422)
+		return
+	}
+}
+
+func GetBalance(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	session, err := sessions.Get(r)
+	if err != nil {
+		log.Err(err).Msg("Session error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	login := session.Values["login"]
+
+	balance, err := models.GetBalance(ctx, login.(string))
+
+	if err := json.NewEncoder(w).Encode(&balance); err != nil {
+		log.Err(err).Msg("json encoding error")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
