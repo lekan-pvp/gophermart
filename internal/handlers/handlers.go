@@ -147,12 +147,12 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 
 	balance, err := models.GetBalance(ctx, login.(string))
 
-	if err := json.NewEncoder(w).Encode(&balance); err != nil {
+	w.Header().Add("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(balance); err != nil {
 		log.Err(err).Msg("json encoding error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }

@@ -95,15 +95,15 @@ func Luna(num []byte) (bool, error) {
 }
 
 type Balance struct {
-	Current   float64 `json:"current,omitempty" db:"balance"`
-	Withdrawn float64 `json:"withdrawn,omitempty" db:"withdrawn"`
+	Current   float32 `json:"current" db:"balance"`
+	Withdrawn float32 `json:"withdrawn" db:"withdrawn"`
 }
 
-func GetBalance(ctx context.Context, login string) (*Balance, error) {
-	res := &Balance{}
-	if err := db.GetContext(ctx, res, `SELECT balance, withdrawn FROM users WHERE username = $1`, login); err != nil {
-		return nil, err
+func GetBalance(ctx context.Context, login string) (Balance, error) {
+	res := Balance{}
+	if err := db.GetContext(ctx, res, `SELECT balance, withdrawn FROM users WHERE username = $1`, &login); err != nil {
+		return Balance{}, err
 	}
-	fmt.Println(res.Current, res.Withdrawn)
+	log.Info().Msg("check")
 	return res, nil
 }
