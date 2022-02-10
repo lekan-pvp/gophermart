@@ -28,6 +28,7 @@ func main() {
 		r.Post("/register", handlers.Signup)
 		r.Post("/login", handlers.Signin)
 		r.Get("/balance", handlers.GetBalance)
+		r.Get("/withdrawals", handlers.GetWithdrawals)
 	})
 
 	log.Info().Msg("server is up...")

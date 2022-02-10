@@ -7,7 +7,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lekan/gophermart/internal/logger"
 	_ "github.com/lib/pq"
+	"sort"
 	"strconv"
+	"time"
 )
 
 type Token struct {
@@ -34,7 +36,7 @@ CREATE TABLE IF NOT EXISTS users(
 
 var orders = `
 CREATE TABLE IF NOT EXISTS orders(
-	order_id INT UNIQUE NOT NULL,
+	order_id VARCHAR UNIQUE NOT NULL,
 	username VARCHAR NOT NULL, 
 	status VARCHAR NOT NULL,
 	uploaded_at TIMESTAMP NOT NULL,
@@ -43,11 +45,26 @@ CREATE TABLE IF NOT EXISTS orders(
     	REFERENCES users (username)
 	);`
 
+var withdrawals = `
+CREATE TABLE IF NOT EXISTS withdrawals(
+    operation_id SERIAL,
+	username VARCHAR NOT NULL,
+	order_id VARCHAR NOT NULL,
+	withdraw_sum NUMERIC,
+	processed_at TIMESTAMP NOT NULL,
+	PRIMARY KEY (operation_id),
+    FOREIGN KEY (username)
+    	REFERENCES users (username),
+    FOREIGN KEY (order_id)
+    	REFERENCES orders (order_id));
+`
+
 func InitDB(databaseURI string) error {
 	db = sqlx.MustConnect("postgres", databaseURI)
 
 	db.MustExec(schema)
 	db.MustExec(orders)
+	db.MustExec(withdrawals)
 
 	log.Info().Msg("create db is done...")
 	return db.Ping()
@@ -106,4 +123,37 @@ func GetBalance(ctx context.Context, login string) (Balance, error) {
 	}
 	log.Info().Msg("check")
 	return res, nil
+}
+
+type Withdrawals struct {
+	Order       string    `json:"order" db:"order_id"`
+	Sum         float32   `json:"sum" db:"withdraw_sum"`
+	ProcessedAt time.Time `json:"processed_at" db:"processed_at"`
+}
+
+func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
+	withdrawals := []Withdrawals{}
+	rows, err := db.QueryContext(ctx, `SELECT order_id, withdraw_sum, processed_at FROM withdrawals WHERE login = $1`, login)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var v Withdrawals
+		err = rows.Scan(&v.Order, &v.Sum, &v.ProcessedAt)
+		if err != nil {
+			return nil, err
+		}
+		withdrawals = append(withdrawals, v)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(withdrawals, func(i, j int) bool {
+		return withdrawals[i].ProcessedAt.Before(withdrawals[j].ProcessedAt)
+	})
+
+	return withdrawals, nil
 }
