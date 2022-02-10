@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS orders(
 	order_id VARCHAR UNIQUE NOT NULL,
 	username VARCHAR NOT NULL, 
 	status VARCHAR NOT NULL,
+	accrual NUMERIC,
 	uploaded_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (order_id, username),
     FOREIGN KEY (username)
@@ -133,7 +134,7 @@ type Withdrawals struct {
 
 func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 	withdrawals := []Withdrawals{}
-	rows, err := db.QueryContext(ctx, `SELECT order_id, withdraw_sum, processed_at FROM withdrawals WHERE login = $1`, login)
+	rows, err := db.QueryxContext(ctx, `SELECT order_id, withdraw_sum, processed_at FROM withdrawals WHERE username = $1`, login)
 	if err != nil {
 		return nil, err
 	}
@@ -156,4 +157,38 @@ func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 	})
 
 	return withdrawals, nil
+}
+
+type Orders struct {
+	Number     string    `json:"number" db:"order_id"`
+	Status     string    `json:"status" db:"status"`
+	Accrual    float32   `json:"accrual" db:"accrual"`
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
+}
+
+func GetOrders(ctx context.Context, login string) ([]Orders, error) {
+	orders := []Orders{}
+	rows, err := db.QueryxContext(ctx, `SELECT order_id, status, accrual, uploaded_at FROM orders WHERE username = $1`, login)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var v Orders
+		err = rows.Scan(&v.Number, &v.Status, &v.Accrual, &v.UploadedAt)
+		if err != nil {
+			return nil, err
+		}
+		orders = append(orders, v)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].UploadedAt.Before(orders[j].UploadedAt)
+	})
+	return orders, nil
 }
