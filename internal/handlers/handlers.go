@@ -247,6 +247,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 
 	if len(res) == 0 {
 		log.Info().Msg("no data for response")
+		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
