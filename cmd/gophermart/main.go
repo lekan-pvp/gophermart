@@ -31,6 +31,7 @@ func main() {
 		r.Get("/withdrawals", handlers.GetWithdrawals)
 		r.Get("/orders", handlers.GetOrders)
 		r.Post("/orders", handlers.Orders)
+		r.Post("/balance/withdraw", handlers.Withdraw)
 	})
 
 	log.Info().Msg("server is up...")

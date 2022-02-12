@@ -75,6 +75,7 @@ func InitDB(databaseURI string) error {
 }
 
 func Signup(ctx context.Context, creds *Credentials) error {
+
 	_, err := db.ExecContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
 	if err != nil {
 		return fmt.Errorf("409 %w", err)
@@ -229,4 +230,54 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 		return orders[i].UploadedAt.Before(orders[j].UploadedAt)
 	})
 	return orders, nil
+}
+
+type Wdraw struct {
+	Order string  `json:"order"`
+	Sum   float32 `json:"sum"`
+}
+
+func Withdraw(ctx context.Context, login string, wdraw *Wdraw) (int, error) {
+	order := wdraw.Order
+	withdraw := wdraw.Sum
+
+	ok, err := Luna([]byte(order))
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	if !ok {
+		return http.StatusUnprocessableEntity, nil
+	}
+
+	balance, err := GetBalance(ctx, login)
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+
+	if balance.Current < withdraw {
+		return http.StatusPaymentRequired, nil
+	}
+
+	balance.Current = balance.Current - withdraw
+	balance.Withdrawn = balance.Withdrawn + withdraw
+
+	tx, err := db.Beginx()
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	_, errExec := tx.ExecContext(ctx, `UPDATE users SET balance = $1, withdrawn = $2 WHERE username = $3`, balance.Current, balance.Withdrawn, login)
+	if errExec != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			log.Err(rollbackErr).Msg("rollback error")
+			return http.StatusInternalServerError, err
+		}
+		log.Err(errExec).Msg("update error")
+		return http.StatusInternalServerError, err
+	}
+	if err := tx.Commit(); err != nil {
+		log.Err(err).Msg("commit error")
+		return http.StatusInternalServerError, err
+	}
+	return http.StatusOK, nil
 }
