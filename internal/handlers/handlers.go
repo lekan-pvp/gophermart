@@ -144,6 +144,7 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 }
 
@@ -174,6 +175,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -296,5 +298,6 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 }
