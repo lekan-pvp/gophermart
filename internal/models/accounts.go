@@ -148,6 +148,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	if err != nil {
 		return 500, err
 	}
+
+	if response.StatusCode == http.StatusOK {
+		response.StatusCode = http.StatusAccepted
+	}
 	return response.StatusCode, nil
 }
 
