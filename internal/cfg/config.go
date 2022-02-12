@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	RunAddress  string `env:"RUN_ADDRESS" envDefault:":8080"`
-	DatabaseURI string `env:"DATABASE_URI" envDefault:"postgresql://postgres:871023@localhost:5432/gophermart_db?sslmode=disable"`
+	RunAddress           string `env:"RUN_ADDRESS" envDefault:":8080"`
+	DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgresql://postgres:871023@localhost:5432/gophermart_db?sslmode=disable"`
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
 }
 
 var instance *Config
@@ -23,13 +24,19 @@ func init() {
 
 	runAddress := flag.String("a", instance.RunAddress, "адрес и порт запуска сервиса")
 	databaseURI := flag.String("d", instance.DatabaseURI, "URI подключения к БД")
+	accrualSystemAddress := flag.String("r", instance.AccrualSystemAddress, "адрес системы расчета начислений")
 
 	flag.Parse()
 
 	instance.RunAddress = *runAddress
 	instance.DatabaseURI = *databaseURI
+	instance.AccrualSystemAddress = *accrualSystemAddress
 }
 
 func GetConfig() Config {
 	return *instance
+}
+
+func GetAccuralSystemAddress() string {
+	return instance.AccrualSystemAddress
 }

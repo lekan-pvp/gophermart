@@ -2,11 +2,14 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
+	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
 	_ "github.com/lib/pq"
+	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -110,6 +113,30 @@ func Luna(num []byte) (bool, error) {
 	}
 	lastNumber, err := strconv.Atoi(string(num[l-1]))
 	return (checkDigit*9)%10 == lastNumber, nil
+}
+
+type Order struct {
+	OrderId string  `json:"order_id" db:"order_id"`
+	Status  string  `json:"status" db:"status"`
+	Accrual float32 `json:"accrual" db:"accrual"`
+}
+
+func PostOrder(ctx context.Context, login string, orderId []byte) error {
+	order := Order{}
+	address := cfg.GetAccuralSystemAddress()
+	response, err := http.Get(address + "/api/orders/" + string(orderId))
+	if err != nil {
+		return err
+	}
+	if err = json.NewDecoder(response.Body).Decode(&order); err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type Balance struct {

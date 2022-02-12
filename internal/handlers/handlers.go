@@ -112,15 +112,18 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 }
 
 func Orders(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	orderId, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		log.Err(err).Msg("take body error")
+		log.Err(err).Msg("take orderId error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	ok, err := models.Luna(body)
+	ok, err := models.Luna(orderId)
 	if err != nil {
 		log.Err(err).Msg("convert number error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -131,6 +134,23 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(422)
 		return
 	}
+
+	session, err := sessions.Get(r)
+	if err != nil {
+		log.Err(err).Msg("Session error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	value := session.Values["login"]
+	login, ok := value.(string)
+	if !ok {
+		log.Info().Msg("type assertion error")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = models.PostOrder(ctx, login, orderId)
+
 }
 
 func GetBalance(w http.ResponseWriter, r *http.Request) {
