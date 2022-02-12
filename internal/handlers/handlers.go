@@ -149,8 +149,14 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = models.PostOrder(ctx, login, orderId)
+	statusCode, err := models.PostOrder(ctx, login, orderId)
+	if err != nil {
+		log.Err(err).Int("PostOrder error, status code: %d", statusCode)
+		http.Error(w, err.Error(), statusCode)
+		return
+	}
 
+	w.WriteHeader(statusCode)
 }
 
 func GetBalance(w http.ResponseWriter, r *http.Request) {

@@ -121,22 +121,23 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
-func PostOrder(ctx context.Context, login string, orderId []byte) error {
+func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	order := Order{}
 	address := cfg.GetAccuralSystemAddress()
 	response, err := http.Get(address + "/api/orders/" + string(orderId))
 	if err != nil {
-		return err
+		return response.StatusCode, err
 	}
+
 	if err = json.NewDecoder(response.Body).Decode(&order); err != nil {
-		return err
+		return 500, err
 	}
 
 	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
 	if err != nil {
-		return err
+		return 500, err
 	}
-	return nil
+	return response.StatusCode, nil
 }
 
 type Balance struct {
