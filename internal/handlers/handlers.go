@@ -123,18 +123,6 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := models.Luna(orderId)
-	if err != nil {
-		log.Err(err).Msg("convert number error")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if !ok {
-		log.Info().Msg("wrong order number format")
-		w.WriteHeader(422)
-		return
-	}
-
 	session, err := sessions.Get(r)
 	if err != nil {
 		log.Err(err).Msg("Session error")

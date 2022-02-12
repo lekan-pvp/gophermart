@@ -122,6 +122,16 @@ type Order struct {
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
+	ok, err := Luna(orderId)
+	if err != nil {
+		log.Err(err).Msg("convert number error")
+		return http.StatusInternalServerError, err
+	}
+	if !ok {
+		log.Info().Msg("wrong order number format")
+		return http.StatusUnprocessableEntity, nil
+	}
+
 	order := Order{}
 	address := cfg.GetAccuralSystemAddress()
 	response, err := http.Get(address + "/api/orders/" + string(orderId))
