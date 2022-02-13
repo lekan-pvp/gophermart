@@ -126,7 +126,7 @@ func Luna(num []byte) (bool, error) {
 type Order struct {
 	OrderId string  `json:"order_id" db:"order_id"`
 	Status  string  `json:"status" db:"status"`
-	Accrual float32 `json:"accrual" db:"accrual"`
+	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
 func worker(ctx context.Context, login string, orderId []byte) error {
@@ -278,7 +278,7 @@ func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 
 type Orders struct {
 	Number     string    `json:"number" db:"order_id"`
-	Status     string    `json:"status" db:"status"`
+	Status     string    `json:"status,omitempty" db:"status"`
 	Accrual    float32   `json:"accrual" db:"accrual"`
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 }
