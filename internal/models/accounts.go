@@ -149,11 +149,11 @@ func worker(ctx context.Context, login string, orderId []byte) {
 		orderResponse = <-orderChan
 		defer orderResponse.Body.Close()
 		log.Info().Int("order response status %d", orderResponse.StatusCode)
+	}
 
-		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
-			log.Err(err)
-			return
-		}
+	if err := json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
+		log.Err(err)
+		return
 	}
 
 	_, err := db.ExecContext(ctx, `UPDATE orders SET VALUES order_id=$1, username=$2, status=$3, accrual=$4, uploaded_at=$5`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
