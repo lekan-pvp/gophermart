@@ -8,7 +8,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
+	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sort"
 	"strconv"
@@ -125,10 +127,6 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
-func worker(ctx context.Context, login string, orderId []byte) {
-
-}
-
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	ok, err := Luna(orderId)
 	if err != nil {
@@ -140,15 +138,28 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusUnprocessableEntity, nil
 	}
 
-	order := Order{}
-	address := cfg.GetAccuralSystemAddress()
+	order := &Order{}
+	address := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	log.Info().Msg(address)
-	response, err := http.Get(address + "/api/orders/" + string(orderId))
+
+	orderChan := make(chan *http.Response, 1)
+
+	errGr, _ := errgroup.WithContext(ctx)
+
+	errGr.Go(func() error {
+		return sendasync.SendGetAcync(address, orderChan)
+	})
+
+	err = errGr.Wait()
 	if err != nil {
-		return response.StatusCode, err
+		log.Err(err).Msg("external service error")
 	}
 
-	if err = json.NewDecoder(response.Body).Decode(&order); err != nil {
+	orderResponse := <-orderChan
+	defer orderResponse.Body.Close()
+
+	if err = json.NewDecoder(orderResponse.Body).Decode(&order); err != nil {
+		log.Err(err)
 		return http.StatusInternalServerError, err
 	}
 
@@ -157,10 +168,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	if response.StatusCode == http.StatusOK {
-		response.StatusCode = http.StatusAccepted
+	if orderResponse.StatusCode == http.StatusOK {
+		orderResponse.StatusCode = http.StatusAccepted
 	}
-	return response.StatusCode, nil
+	return orderResponse.StatusCode, nil
 }
 
 type Balance struct {
