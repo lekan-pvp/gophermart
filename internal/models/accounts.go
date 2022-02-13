@@ -148,8 +148,12 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		}
 	}
 
-	if another != login {
+	if another != "" && another != login {
 		return http.StatusConflict, nil
+	}
+
+	if another != "" && another == login {
+		return http.StatusOK, nil
 	}
 
 	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2);`, string(orderId), login)
