@@ -157,6 +157,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	orderResponse := <-orderChan
+	log.Info().Int("response status %d", orderResponse.StatusCode)
 	defer orderResponse.Body.Close()
 
 	if err = json.NewDecoder(orderResponse.Body).Decode(&order); err != nil {
