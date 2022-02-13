@@ -278,9 +278,9 @@ func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 
 type Orders struct {
 	Number     string    `json:"number" db:"order_id"`
-	Status     string    `json:"status,omitempty" db:"status,omitempty"`
-	Accrual    float32   `json:"accrual,omitempty" db:"accrual,omitempty"`
-	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at,omitempty"`
+	Status     string    `json:"status,omitempty" db:"status"`
+	Accrual    float32   `json:"accrual,omitempty" db:"accrual"`
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 }
 
 func GetOrders(ctx context.Context, login string) ([]Orders, error) {
