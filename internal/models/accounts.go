@@ -127,6 +127,39 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
+func worker(ctx context.Context, login string, orderId []byte) (int, error) {
+	order := &Order{}
+	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+	orderChan := make(chan *http.Response, 1)
+	errGr, _ := errgroup.WithContext(ctx)
+	var orderResponse *http.Response
+	for order.Status != "INVALID" || order.Status != "PROCESSED" {
+		errGr.Go(func() error {
+			return sendasync.SendGetAcync(url, orderChan)
+		})
+		err := errGr.Wait()
+		if err != nil {
+			log.Err(err)
+			return http.StatusInternalServerError, err
+		}
+
+		orderResponse = <-orderChan
+		defer orderResponse.Body.Close()
+		log.Info().Int("order response status %d", orderResponse.StatusCode)
+
+		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
+			log.Err(err)
+			return http.StatusInternalServerError, err
+		}
+	}
+
+	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	return 200, nil
+}
+
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	//ok, err := Luna(orderId)
 	//if err != nil {
@@ -137,43 +170,15 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	//	log.Info().Msg("wrong order number format")
 	//	return http.StatusUnprocessableEntity, nil
 	//}
-
-	order := &Order{}
-	address := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	log.Info().Msg(address)
-
-	orderChan := make(chan *http.Response, 1)
-
-	errGr, _ := errgroup.WithContext(ctx)
-
-	errGr.Go(func() error {
-		return sendasync.SendGetAcync(address, orderChan)
-	})
-
-	err := errGr.Wait()
+	resCode, err := worker(ctx, login, orderId)
 	if err != nil {
-		log.Err(err).Msg("external service error")
-		return http.StatusInternalServerError, err
+
 	}
 
-	orderResponse := <-orderChan
-	log.Info().Int("response status %d", orderResponse.StatusCode)
-	defer orderResponse.Body.Close()
-
-	if err = json.NewDecoder(orderResponse.Body).Decode(&order); err != nil {
-		log.Err(err)
-		return http.StatusInternalServerError, err
+	if resCode == http.StatusOK {
+		resCode = http.StatusAccepted
 	}
-
-	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	if orderResponse.StatusCode == http.StatusOK {
-		orderResponse.StatusCode = http.StatusAccepted
-	}
-	return orderResponse.StatusCode, nil
+	return resCode, nil
 }
 
 type Balance struct {
