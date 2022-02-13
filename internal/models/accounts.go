@@ -41,9 +41,9 @@ var orders = `
 CREATE TABLE IF NOT EXISTS orders(
 	order_id VARCHAR UNIQUE NOT NULL,
 	username VARCHAR NOT NULL, 
-	status VARCHAR NOT NULL,
+	status VARCHAR,
 	accrual NUMERIC,
-	uploaded_at TIMESTAMP NOT NULL,
+	uploaded_at TIMESTAMP,
 	PRIMARY KEY (order_id, username),
     FOREIGN KEY (username)
     	REFERENCES users (username)
