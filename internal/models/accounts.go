@@ -278,9 +278,9 @@ func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 
 type Orders struct {
 	Number     string    `json:"number" db:"order_id"`
-	Status     string    `json:"status,omitempty" db:"status"`
-	Accrual    float32   `json:"accrual,omitempty" db:"accrual"`
-	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
+	Status     string    `json:"status,omitempty" db:"status,omitempty"`
+	Accrual    float32   `json:"accrual,omitempty" db:"accrual,omitempty"`
+	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at,omitempty"`
 }
 
 func GetOrders(ctx context.Context, login string) ([]Orders, error) {
@@ -295,6 +295,7 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 		var v Orders
 		err = rows.Scan(&v.Number, &v.Status, &v.Accrual, &v.UploadedAt)
 		if err != nil {
+			log.Err(err).Msg("in GetOrders scan error")
 			return nil, err
 		}
 		orders = append(orders, v)
@@ -302,6 +303,7 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 
 	err = rows.Err()
 	if err != nil {
+		log.Err(err).Msg("in GetOrders rows.Err()")
 		return nil, err
 	}
 
