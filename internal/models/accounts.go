@@ -2,13 +2,17 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
+	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
+	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
 	"github.com/omeid/pgerror"
+	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sort"
 	"strconv"
@@ -126,7 +130,51 @@ type Order struct {
 }
 
 func worker(ctx context.Context, login string, orderId []byte) {
+	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+	order := &Order{}
+	orderChan := make(chan *http.Response, 1)
+	errGr, _ := errgroup.WithContext(ctx)
 
+	for {
+		errGr.Go(func() error {
+			return sendasync.SendGetAcync(url, orderChan)
+		})
+		err := errGr.Wait()
+		if err != nil {
+			log.Err(err).Msg("in goroutine")
+			return
+		}
+		orderResponse := <-orderChan
+		defer orderResponse.Body.Close()
+
+		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
+			log.Err(err).Msg("in goroutine json error")
+			return
+		}
+
+		if order.Status == "INVALID" || order.Status == "PROCESSED" {
+			break
+		}
+	}
+
+	tx, err := db.Beginx()
+	if err != nil {
+		log.Err(err).Msg("database update orders error")
+		return
+	}
+	_, errExec := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+	if errExec != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			log.Err(rollbackErr).Msg("goroutine rollback error")
+			return
+		}
+		log.Err(errExec).Msg("goroutine exec error")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		log.Err(err).Msg("goroutine commit error")
+		return
+	}
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -166,6 +214,8 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
+	go worker(ctx, login, orderId)
+
 	return http.StatusAccepted, nil
 }
 
@@ -176,7 +226,7 @@ type Balance struct {
 
 func GetBalance(ctx context.Context, login string) (Balance, error) {
 	res := Balance{}
-	if err := db.GetContext(ctx, res, `SELECT balance, withdrawn FROM users WHERE username = $1`, &login); err != nil {
+	if err := db.GetContext(ctx, res, `SELECT balance, withdrawn FROM users WHERE username = $1`, login); err != nil {
 		return Balance{}, err
 	}
 	log.Info().Msg("check")
