@@ -11,7 +11,3 @@ var store = gsessions.NewCookieStore([]byte(os.Getenv("token_password")))
 func Get(req *http.Request) (*gsessions.Session, error) {
 	return store.Get(req, "session-name")
 }
-
-func GetNamed(req *http.Request, name string) (*gsessions.Session, error) {
-	return store.Get(req, name)
-}
