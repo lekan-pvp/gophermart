@@ -112,7 +112,7 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 }
 
 func Orders(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
 	orderId, err := io.ReadAll(r.Body)
