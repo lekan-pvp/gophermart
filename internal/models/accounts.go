@@ -132,7 +132,7 @@ type Order struct {
 func worker(ctx context.Context, login string, orderId []byte) error {
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	order := &Order{}
-	orderChan := make(chan *http.Response, 1)
+	orderChan := make(chan *http.Response)
 	errGr, _ := errgroup.WithContext(ctx)
 
 	for {
@@ -287,6 +287,7 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 	orders := []Orders{}
 	rows, err := db.QueryxContext(ctx, `SELECT order_id, status, accrual, uploaded_at FROM orders WHERE username = $1`, login)
 	if err != nil {
+		log.Err(err).Msg("in GetOrder query error")
 		return nil, err
 	}
 
