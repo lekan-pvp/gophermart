@@ -156,7 +156,7 @@ func worker(ctx context.Context, login string, orderId []byte) {
 		}
 	}
 
-	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
+	_, err := db.ExecContext(ctx, `UPDATE orders SET VALUES order_id=$1, username=$2, status=$3, accrual=$4, uploaded_at=$5`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
 	if err != nil {
 		return
 	}
