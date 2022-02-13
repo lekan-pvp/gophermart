@@ -130,7 +130,7 @@ type Order struct {
 }
 
 func worker(ctx context.Context, login string, orderId []byte) error {
-	url := cfg.GetAccuralSystemAddress() + "/" + string(orderId)
+	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	order := &Order{}
 	orderChan := make(chan *http.Response, 1)
 	errGr, _ := errgroup.WithContext(ctx)
