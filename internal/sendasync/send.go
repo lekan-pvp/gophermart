@@ -5,7 +5,7 @@ import (
 )
 
 func SendGetAcync(url string, rc chan *http.Response) error {
-	response, err := http.Post(url, "application/json", nil)
+	response, err := http.Get(url)
 	if err == nil {
 		rc <- response
 	}
