@@ -146,6 +146,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
 			return http.StatusOK, err
 		}
+		log.Err(err).Msg("add order error")
 		return http.StatusInternalServerError, err
 	}
 
