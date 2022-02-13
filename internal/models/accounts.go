@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
@@ -10,6 +11,7 @@ import (
 	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
+	"github.com/omeid/pgerror"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sort"
@@ -127,10 +129,11 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
-func worker(ctx context.Context, login string, orderId []byte) (int, error) {
+func worker(ctx context.Context, login string, orderId []byte) {
 	order := &Order{}
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	orderChan := make(chan *http.Response, 1)
+	defer close(orderChan)
 	errGr, _ := errgroup.WithContext(ctx)
 	var orderResponse *http.Response
 	for order.Status != "INVALID" || order.Status != "PROCESSED" {
@@ -140,7 +143,7 @@ func worker(ctx context.Context, login string, orderId []byte) (int, error) {
 		err := errGr.Wait()
 		if err != nil {
 			log.Err(err)
-			return http.StatusInternalServerError, err
+			return
 		}
 
 		orderResponse = <-orderChan
@@ -149,15 +152,15 @@ func worker(ctx context.Context, login string, orderId []byte) (int, error) {
 
 		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
 			log.Err(err)
-			return http.StatusInternalServerError, err
+			return
 		}
 	}
 
 	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, accrual, uploaded_at) VALUES ($1, $2, $3, $4, $5);`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
 	if err != nil {
-		return http.StatusInternalServerError, err
+		return
 	}
-	return 200, nil
+	return
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -170,15 +173,19 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	//	log.Info().Msg("wrong order number format")
 	//	return http.StatusUnprocessableEntity, nil
 	//}
-	resCode, err := worker(ctx, login, orderId)
+
+	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2) `, string(orderId), login)
+
 	if err != nil {
-
+		if errors.Is(err, pgerror.UniqueViolation(err)) {
+			return http.StatusOK, err
+		}
+		return http.StatusInternalServerError, err
 	}
 
-	if resCode == http.StatusOK {
-		resCode = http.StatusAccepted
-	}
-	return resCode, nil
+	go worker(ctx, login, orderId)
+
+	return http.StatusAccepted, nil
 }
 
 type Balance struct {
