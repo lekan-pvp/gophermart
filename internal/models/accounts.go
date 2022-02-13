@@ -216,12 +216,15 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	go func() {
-		err := worker(ctx, login, orderId)
-		if err != nil {
-			return
-		}
-	}()
+	errGr, _ := errgroup.WithContext(ctx)
+
+	errGr.Go(func() error {
+		return worker(ctx, login, orderId)
+	})
+	err = errGr.Wait()
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
 
 	return http.StatusAccepted, nil
 }
