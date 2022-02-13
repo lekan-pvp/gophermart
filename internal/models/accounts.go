@@ -140,7 +140,19 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	//	return http.StatusUnprocessableEntity, nil
 	//}
 
-	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2) `, string(orderId), login)
+	var another string
+
+	if err := db.GetContext(ctx, &another, `SELECT username FROM orders WHERE order_id=$1`, string(orderId)); err != nil {
+		if errors.Is(err, pgerror.NoDataFound(err)) {
+			log.Err(err).Msg("its ok")
+		}
+	}
+
+	if another != login {
+		return http.StatusConflict, nil
+	}
+
+	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2);`, string(orderId), login)
 
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {

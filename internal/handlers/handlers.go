@@ -242,7 +242,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 
 	res, err := models.GetOrders(ctx, login)
 	if err != nil {
-		log.Err(err).Msg("database error")
+		log.Err(err).Msg("get orders database error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
