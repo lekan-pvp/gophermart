@@ -2,17 +2,13 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
-	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
-	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
 	"github.com/omeid/pgerror"
-	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sort"
 	"strconv"
@@ -130,37 +126,7 @@ type Order struct {
 }
 
 func worker(ctx context.Context, login string, orderId []byte) {
-	order := &Order{}
-	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	orderChan := make(chan *http.Response, 1)
-	defer close(orderChan)
-	errGr, _ := errgroup.WithContext(ctx)
-	var orderResponse *http.Response
-	for order.Status != "INVALID" || order.Status != "PROCESSED" {
-		errGr.Go(func() error {
-			return sendasync.SendGetAcync(url, orderChan)
-		})
-		err := errGr.Wait()
-		if err != nil {
-			log.Err(err)
-			return
-		}
 
-		orderResponse = <-orderChan
-		defer orderResponse.Body.Close()
-		log.Info().Int("order response status %d", orderResponse.StatusCode)
-	}
-
-	if err := json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
-		log.Err(err)
-		return
-	}
-
-	_, err := db.ExecContext(ctx, `UPDATE orders SET VALUES order_id=$1, username=$2, status=$3, accrual=$4, uploaded_at=$5`, order.OrderId, login, order.Status, order.Accrual, time.Now().Format(time.RFC3339))
-	if err != nil {
-		return
-	}
-	return
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -182,8 +148,6 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		}
 		return http.StatusInternalServerError, err
 	}
-
-	go worker(ctx, login, orderId)
 
 	return http.StatusAccepted, nil
 }
