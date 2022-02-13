@@ -129,7 +129,7 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
-func worker(ctx context.Context, login string, orderId []byte) {
+func worker(ctx context.Context, login string, orderId []byte) error {
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	order := &Order{}
 	orderChan := make(chan *http.Response, 1)
@@ -142,14 +142,15 @@ func worker(ctx context.Context, login string, orderId []byte) {
 		err := errGr.Wait()
 		if err != nil {
 			log.Err(err).Msg("in goroutine")
-			return
+			return err
 		}
 		orderResponse := <-orderChan
 		defer orderResponse.Body.Close()
 
+		orderResponse.Header.Add("Content-Type", "application/json")
 		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
 			log.Err(err).Msg("in goroutine json error")
-			return
+			return err
 		}
 
 		if order.Status == "INVALID" || order.Status == "PROCESSED" {
@@ -160,21 +161,22 @@ func worker(ctx context.Context, login string, orderId []byte) {
 	tx, err := db.Beginx()
 	if err != nil {
 		log.Err(err).Msg("database update orders error")
-		return
+		return err
 	}
 	_, errExec := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
 	if errExec != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			log.Err(rollbackErr).Msg("goroutine rollback error")
-			return
+			return err
 		}
 		log.Err(errExec).Msg("goroutine exec error")
-		return
+		return err
 	}
 	if err := tx.Commit(); err != nil {
 		log.Err(err).Msg("goroutine commit error")
-		return
+		return err
 	}
+	return nil
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -214,7 +216,12 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	go worker(ctx, login, orderId)
+	go func() {
+		err := worker(ctx, login, orderId)
+		if err != nil {
+			return
+		}
+	}()
 
 	return http.StatusAccepted, nil
 }
