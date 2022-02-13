@@ -150,7 +150,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return sendasync.SendGetAcync(address, orderChan)
 	})
 
-	err = errGr.Wait()
+	err := errGr.Wait()
 	if err != nil {
 		log.Err(err).Msg("external service error")
 		return http.StatusInternalServerError, err
