@@ -98,7 +98,7 @@ func Luna(num []byte) (bool, error) {
 	var number int
 	l := len(num)
 	number = 0
-	checkDigit := 0
+	sum := 0
 	for i := 0; i < l; i++ {
 		number, err = strconv.Atoi(string(num[i]))
 		if err != nil {
@@ -110,10 +110,13 @@ func Luna(num []byte) (bool, error) {
 				number -= 9
 			}
 		}
-		checkDigit += number
+		sum += number
+		if sum >= 10 {
+			sum -= 10
+		}
 	}
-	lastNumber, err := strconv.Atoi(string(num[l-1]))
-	return (checkDigit*9)%10 == lastNumber, nil
+	return sum == 0, nil
+
 }
 
 type Order struct {
@@ -122,16 +125,20 @@ type Order struct {
 	Accrual float32 `json:"accrual" db:"accrual"`
 }
 
+func worker(ctx context.Context, login string, orderId []byte) {
+
+}
+
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
-	//ok, err := Luna(orderId)
-	//if err != nil {
-	//	log.Err(err).Msg("convert number error")
-	//	return http.StatusInternalServerError, err
-	//}
-	//if !ok {
-	//	log.Info().Msg("wrong order number format")
-	//	return http.StatusUnprocessableEntity, nil
-	//}
+	ok, err := Luna(orderId)
+	if err != nil {
+		log.Err(err).Msg("convert number error")
+		return http.StatusInternalServerError, err
+	}
+	if !ok {
+		log.Info().Msg("wrong order number format")
+		return http.StatusUnprocessableEntity, nil
+	}
 
 	order := Order{}
 	address := cfg.GetAccuralSystemAddress()
