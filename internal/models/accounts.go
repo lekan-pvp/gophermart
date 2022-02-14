@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
+	"github.com/lekan/gophermart/internal/luhn"
 	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
 	"github.com/omeid/pgerror"
@@ -97,32 +98,6 @@ func Signin(ctx context.Context, creds *Credentials) error {
 	return nil
 }
 
-func Luna(num []byte) (bool, error) {
-	var err error
-	var number int
-	l := len(num)
-	number = 0
-	sum := 0
-	for i := 0; i < l; i++ {
-		number, err = strconv.Atoi(string(num[i]))
-		if err != nil {
-			return false, err
-		}
-		if i%2 != 0 {
-			number *= 2
-			if number > 9 {
-				number -= 9
-			}
-		}
-		sum += number
-		if sum >= 10 {
-			sum -= 10
-		}
-	}
-	return sum == 0, nil
-
-}
-
 type Order struct {
 	OrderId string  `json:"order_id" db:"order_id"`
 	Status  string  `json:"status,omitempty" db:"status"`
@@ -180,15 +155,17 @@ func worker(ctx context.Context, login string, orderId []byte) error {
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
-	//ok, err := Luna(orderId)
-	//if err != nil {
-	//	log.Err(err).Msg("convert number error")
-	//	return http.StatusInternalServerError, err
-	//}
-	//if !ok {
-	//	log.Info().Msg("wrong order number format")
-	//	return http.StatusUnprocessableEntity, nil
-	//}
+	number, err := strconv.Atoi(string(orderId))
+	if err != nil {
+		log.Err(err).Msg("order must be a number")
+		return http.StatusInternalServerError, err
+	}
+
+	ok := luhn.Valid(number)
+	if !ok {
+		log.Info().Msg("wrong order number format")
+		return http.StatusUnprocessableEntity, nil
+	}
 
 	var another string
 
@@ -206,7 +183,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusOK, nil
 	}
 
-	_, err := db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2);`, string(orderId), login)
+	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2);`, string(orderId), login)
 
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
@@ -322,10 +299,13 @@ func Withdraw(ctx context.Context, login string, wdraw *Wdraw) (int, error) {
 	order := wdraw.Order
 	withdraw := wdraw.Sum
 
-	ok, err := Luna([]byte(order))
+	number, err := strconv.Atoi(order)
 	if err != nil {
+		log.Err(err).Msg("order must to be a number")
 		return http.StatusInternalServerError, err
 	}
+
+	ok := luhn.Valid(number)
 
 	if !ok {
 		return http.StatusUnprocessableEntity, nil
