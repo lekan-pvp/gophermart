@@ -122,6 +122,10 @@ func worker(ctx context.Context, login string, orderId []byte) error {
 		orderResponse := <-orderChan
 		defer orderResponse.Body.Close()
 
+		if orderResponse.StatusCode == http.StatusInternalServerError {
+			continue
+		}
+
 		orderResponse.Header.Add("Content-Type", "application/json")
 		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
 			log.Err(err).Msg("in goroutine json error")
