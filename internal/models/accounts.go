@@ -122,7 +122,7 @@ func worker(ctx context.Context, login string, orderId []byte) error {
 		orderResponse := <-orderChan
 		defer orderResponse.Body.Close()
 
-		if orderResponse.StatusCode == http.StatusInternalServerError {
+		if orderResponse.StatusCode != http.StatusOK {
 			continue
 		}
 
