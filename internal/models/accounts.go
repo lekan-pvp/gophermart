@@ -135,7 +135,7 @@ func worker(ctx context.Context, login string, orderId []byte) error {
 	orderChan := make(chan *http.Response, 1)
 	errGr, _ := errgroup.WithContext(ctx)
 
-	for {
+	for i := 0; i < 5; i++ {
 		errGr.Go(func() error {
 			return sendasync.SendGetAcync(url, orderChan)
 		})
