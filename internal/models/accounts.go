@@ -183,7 +183,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusOK, nil
 	}
 
-	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username) VALUES ($1, $2);`, string(orderId), login)
+	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, uploaded_at) VALUES ($1, $2, $3);`, string(orderId), login, time.Now().Format(time.RFC3339))
 
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
