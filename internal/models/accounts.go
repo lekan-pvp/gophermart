@@ -327,7 +327,13 @@ func Withdraw(ctx context.Context, login string, wdraw *Wdraw) (int, error) {
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	_, errExec := tx.ExecContext(ctx, `UPDATE users SET balance = $1, withdrawn = $2 WHERE username = $3`, balance.Current, balance.Withdrawn, login)
+	_, errExec := tx.ExecContext(ctx, `
+UPDATE users 
+SET balance = $1, withdrawn = $2 
+WHERE username = $3;
+INSERT INTO withdrawals(username, order_id, withdraw_sum, processed_at)
+VALUES ($3, $4, $5, $6);
+`, balance.Current, balance.Withdrawn, login, order, withdraw, time.Now().Format(time.RFC3339))
 	if errExec != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
 			log.Err(rollbackErr).Msg("rollback error")
