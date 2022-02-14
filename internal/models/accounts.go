@@ -46,7 +46,7 @@ var orders = `
 CREATE TABLE IF NOT EXISTS orders(
 	order_id VARCHAR UNIQUE NOT NULL,
 	username VARCHAR NOT NULL, 
-	status VARCHAR DEFAULT "",
+	status VARCHAR DEFAULT '',
 	accrual NUMERIC DEFAULT 0,
 	uploaded_at TIMESTAMP,
 	PRIMARY KEY (order_id, username),
