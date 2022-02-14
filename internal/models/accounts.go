@@ -10,7 +10,6 @@ import (
 	"github.com/lekan/gophermart/internal/cfg"
 	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/luhn"
-	"github.com/lekan/gophermart/internal/sendasync"
 	_ "github.com/lib/pq"
 	"github.com/omeid/pgerror"
 	"golang.org/x/sync/errgroup"
@@ -99,36 +98,81 @@ func Signin(ctx context.Context, creds *Credentials) error {
 }
 
 type Order struct {
-	OrderId string  `json:"order_id" db:"order_id"`
+	OrderId string  `json:"order" db:"order_id"`
 	Status  string  `json:"status,omitempty" db:"status"`
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(ctx context.Context, login string, orderId []byte) error {
-	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	order := &Order{}
-	orderChan := make(chan *http.Response, 1)
-	errGr, _ := errgroup.WithContext(ctx)
+//func worker(ctx context.Context, login string, orderId []byte) error {
+//	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+//	log.Info().Msgf("%s", url)
+//	order := &Order{}
+//	orderChan := make(chan *http.Response, 1)
+//	errGr, _ := errgroup.WithContext(ctx)
+//
+//	for i := 0; i < 5; i++ {
+//		errGr.Go(func() error {
+//			return sendasync.SendGetAcync(url, orderChan)
+//		})
+//		err := errGr.Wait()
+//		if err != nil {
+//			log.Err(err).Msg("in goroutine")
+//			return err
+//		}
+//
+//		orderResponse := <-orderChan
+//		defer orderResponse.Body.Close()
+//
+//		fmt.Println(orderResponse.Body)
+//
+//		if orderResponse.StatusCode != http.StatusOK {
+//			continue
+//		}
+//
+//		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
+//			log.Err(err).Msg("in goroutine json error")
+//			return err
+//		}
+//
+//		if order.Status == "INVALID" || order.Status == "PROCESSED" {
+//			break
+//		}
+//	}
+//
+//	tx, err := db.Beginx()
+//	if err != nil {
+//		log.Err(err).Msg("database update orders error")
+//		return err
+//	}
+//	_, errExec := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+//	if errExec != nil {
+//		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+//			log.Err(rollbackErr).Msg("goroutine rollback error")
+//			return err
+//		}
+//		log.Err(errExec).Msg("goroutine exec error")
+//		return err
+//	}
+//	if err := tx.Commit(); err != nil {
+//		log.Err(err).Msg("goroutine commit error")
+//		return err
+//	}
+//	return nil
+//}
 
+func worker2(ctx context.Context, url string, order *Order, login string) error {
+	var response *http.Response
+	var err error
 	for i := 0; i < 5; i++ {
-		errGr.Go(func() error {
-			return sendasync.SendGetAcync(url, orderChan)
-		})
-		err := errGr.Wait()
+		response, err = http.Get(url)
 		if err != nil {
-			log.Err(err).Msg("in goroutine")
 			return err
 		}
-		orderResponse := <-orderChan
-		defer orderResponse.Body.Close()
-
-		if orderResponse.StatusCode != http.StatusOK {
+		if response.StatusCode != http.StatusOK {
 			continue
 		}
-
-		orderResponse.Header.Add("Content-Type", "application/json")
-		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
-			log.Err(err).Msg("in goroutine json error")
+		if err := json.NewDecoder(response.Body).Decode(order); err != nil {
+			response.StatusCode = http.StatusInternalServerError
 			return err
 		}
 
@@ -136,7 +180,6 @@ func worker(ctx context.Context, login string, orderId []byte) error {
 			break
 		}
 	}
-
 	tx, err := db.Beginx()
 	if err != nil {
 		log.Err(err).Msg("database update orders error")
@@ -199,9 +242,17 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 
 	errGr, _ := errgroup.WithContext(ctx)
 
+	//errGr.Go(func() error {
+	//	return worker(ctx, login, orderId)
+	//})
+	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+	//orderChan := make(chan *http.Response, 1)
+	order := &Order{}
+
 	errGr.Go(func() error {
-		return worker(ctx, login, orderId)
+		return worker2(ctx, url, order, login)
 	})
+
 	err = errGr.Wait()
 	if err != nil {
 		return http.StatusInternalServerError, err

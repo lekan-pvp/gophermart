@@ -2,7 +2,7 @@ POST http://localhost:8080/api/user/register
 Content-Type: application/json
 
 {
-  "login": "lsn24ud7ds",
+  "login": "lsn24uud7ds",
   "password": "password>"
 }
 

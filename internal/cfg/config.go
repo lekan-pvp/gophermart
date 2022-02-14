@@ -9,7 +9,7 @@ import (
 type Config struct {
 	RunAddress           string `env:"RUN_ADDRESS" envDefault:":8080"`
 	DatabaseURI          string `env:"DATABASE_URI" envDefault:"postgresql://postgres:871023@localhost:5432/gophermart_db?sslmode=disable"`
-	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS"`
+	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"http://localhost:8000"`
 }
 
 var instance *Config
