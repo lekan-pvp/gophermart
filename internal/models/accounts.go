@@ -103,10 +103,10 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(url string, ch chan Order) error {
+func worker(url string, client http.Client, ch chan Order) error {
 	order := Order{}
 	for i := 0; i < 5; i++ {
-		resOrder, err := http.Get(url)
+		resOrder, err := client.Get(url)
 		if err != nil {
 			log.Err(err).Msg("goroutine get error")
 			return err
@@ -169,9 +169,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	errGr, _ := errgroup.WithContext(ctx)
 	orderCh := make(chan Order, 1)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-
+	client := http.Client{}
+	client.Timeout = time.Second * 5
 	errGr.Go(func() error {
-		return worker(url, orderCh)
+		return worker(url, client, orderCh)
 	})
 
 	err = errGr.Wait()
