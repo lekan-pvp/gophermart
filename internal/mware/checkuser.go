@@ -1,10 +1,12 @@
 package mware
 
 import (
+	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/sessions"
-	"github.com/rs/zerolog/log"
 	"net/http"
 )
+
+var log = logger.GetLogger()
 
 func CheckUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
