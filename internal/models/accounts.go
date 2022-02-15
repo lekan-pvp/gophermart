@@ -105,24 +105,19 @@ type Order struct {
 
 func worker(url string, client http.Client, ch chan Order) error {
 	order := Order{}
-	for i := 0; i < 5; i++ {
-		resOrder, err := client.Get(url)
-		if err != nil {
-			log.Err(err).Msg("goroutine get error")
+	resOrder, err := client.Get(url)
+	if err != nil {
+		log.Err(err).Msg("goroutine get error")
+		return err
+	}
+
+	if resOrder.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(resOrder.Body).Decode(&order); err != nil {
+			log.Err(err).Msg("goroutine json decode error")
 			return err
 		}
-
-		if resOrder.StatusCode == http.StatusOK {
-			if err := json.NewDecoder(resOrder.Body).Decode(&order); err != nil {
-				log.Err(err).Msg("goroutine json decode error")
-				return err
-			}
-		}
-
-		if order.Status == "INVALID" || order.Status == "PROCESSED" {
-			break
-		}
 	}
+
 	ch <- order
 	return nil
 }
@@ -171,6 +166,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
 	client.Timeout = time.Second * 5
+
 	errGr.Go(func() error {
 		return worker(url, client, orderCh)
 	})
