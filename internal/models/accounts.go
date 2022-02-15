@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -104,43 +103,24 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(ctx context.Context, url string, client *http.Client, login string, stopCh chan struct{}) error {
+func worker(url string, client *http.Client, orderCh chan Order) error {
 	order := Order{}
-	var mu sync.Mutex
 
-	for {
-		res, err := client.Get(url)
-		log.Info().Msgf("in worker: %s", res.Status)
-		if err != nil {
-			log.Err(err).Msg("goroutine get error")
+	res, err := client.Get(url)
+	log.Info().Msgf("in worker: %s", res.Status)
+	if err != nil {
+		log.Err(err).Msg("goroutine get error")
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
+			log.Err(err).Msg("in worker json error")
 			return err
 		}
-		defer res.Body.Close()
-		if res.StatusCode == http.StatusOK {
-			if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
-				log.Err(err).Msg("in worker json error")
-				return err
-			}
-		}
-		mu.Lock()
-		if order.Status == "PROCESSED" {
-			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
-			if err != nil {
-				log.Err(err).Msg("database update error")
-				return err
-			}
-		} else {
-			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
-			if err != nil {
-				log.Err(err).Msg("database update error")
-				return err
-			}
-		}
-		mu.Unlock()
-		select {
-		case <-stopCh:
-		}
 	}
+	orderCh <- order
+	return nil
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -185,10 +165,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	errGr, _ := errgroup.WithContext(ctx)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
-	stopCh := make(chan struct{})
+	orderCh := make(chan Order, 1)
 
 	errGr.Go(func() error {
-		return worker(ctx, url, &client, login, stopCh)
+		return worker(url, &client, orderCh)
 	})
 
 	err = errGr.Wait()
@@ -196,7 +176,22 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	close(stopCh)
+	order := Order{}
+	order = <-orderCh
+
+	if order.Status == "PROCESSED" {
+		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+		if err != nil {
+			log.Err(err).Msg("database update error")
+			return http.StatusInternalServerError, err
+		}
+	} else {
+		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
+		if err != nil {
+			log.Err(err).Msg("database update error")
+			return http.StatusInternalServerError, err
+		}
+	}
 
 	return http.StatusAccepted, nil
 }
