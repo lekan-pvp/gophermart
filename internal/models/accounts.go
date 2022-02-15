@@ -105,6 +105,7 @@ type Order struct {
 
 func worker(url string, client *http.Client, ch chan *http.Response) error {
 	res, err := client.Get(url)
+	log.Info().Msgf("in worker: %s", res.Status)
 	if err != nil {
 		log.Err(err).Msg("goroutine get error")
 		return err
