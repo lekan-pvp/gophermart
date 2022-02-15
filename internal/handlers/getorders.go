@@ -28,6 +28,13 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if login == "" {
+		log.Info().Msg("get ordes unauthorized")
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	res, err := models.GetOrders(ctx, login)
 	if err != nil {
 		log.Err(err).Msg("get orders database error")
