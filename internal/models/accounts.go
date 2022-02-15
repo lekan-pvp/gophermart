@@ -104,7 +104,7 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(ctx context.Context, url string, client *http.Client, login string) error {
+func worker(ctx context.Context, url string, client *http.Client, login string, stopCh chan struct{}) error {
 	order := Order{}
 	var mu sync.Mutex
 
@@ -137,8 +137,10 @@ func worker(ctx context.Context, url string, client *http.Client, login string) 
 			}
 		}
 		mu.Unlock()
+		select {
+		case <-stopCh:
+		}
 	}
-	return nil
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
@@ -183,15 +185,18 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	errGr, _ := errgroup.WithContext(ctx)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
+	stopCh := make(chan struct{})
 
 	errGr.Go(func() error {
-		return worker(ctx, url, &client, login)
+		return worker(ctx, url, &client, login, stopCh)
 	})
 
 	err = errGr.Wait()
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
+
+	close(stopCh)
 
 	return http.StatusAccepted, nil
 }
