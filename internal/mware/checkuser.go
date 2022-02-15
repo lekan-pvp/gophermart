@@ -22,21 +22,21 @@ func CheckUser(next http.Handler) http.Handler {
 			log.Err(err).Msg("session initialization error")
 			//http.Error(w, err.Error(), 500)
 			w.WriteHeader(http.StatusInternalServerError)
-			next.ServeHTTP(w, r)
+			//next.ServeHTTP(w, r)
 			return
 		}
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
 			log.Error().Msg("access denied")
 			//http.Error(w, err.Error(), http.StatusUnauthorized)
 			w.WriteHeader(http.StatusUnauthorized)
-			next.ServeHTTP(w, r)
+			//next.ServeHTTP(w, r)
 			return
 		}
 		if login, ok := session.Values["login"].(string); !ok || login == "" {
 			log.Err(err).Msg("unknown login")
 			//http.Error(w, err.Error(), http.StatusUnauthorized)
 			w.WriteHeader(http.StatusUnauthorized)
-			next.ServeHTTP(w, r)
+			//next.ServeHTTP(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)
