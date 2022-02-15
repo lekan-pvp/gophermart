@@ -112,9 +112,11 @@ func worker(url string, ch chan Order) error {
 			return err
 		}
 
-		if err := json.NewDecoder(resOrder.Body).Decode(&order); err != nil {
-			log.Err(err).Msg("goroutine json decode error")
-			return err
+		if resOrder.StatusCode == http.StatusOK {
+			if err := json.NewDecoder(resOrder.Body).Decode(&order); err != nil {
+				log.Err(err).Msg("goroutine json decode error")
+				return err
+			}
 		}
 
 		if order.Status == "INVALID" || order.Status == "PROCESSED" {
