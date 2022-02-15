@@ -179,9 +179,12 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 
 	order := Order{}
 	defer res.Body.Close()
-	if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
-		log.Err(err).Msg("order json error")
-		return http.StatusInternalServerError, err
+
+	if res.StatusCode == http.StatusOK {
+		if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
+			log.Err(err).Msg("order json error")
+			return http.StatusInternalServerError, err
+		}
 	}
 
 	if order.Status == "PROCESSED" {
