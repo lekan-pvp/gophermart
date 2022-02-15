@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -103,15 +104,40 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(url string, client *http.Client, ch chan *http.Response) error {
-	res, err := client.Get(url)
-	log.Info().Msgf("in worker: %s", res.Status)
-	if err != nil {
-		log.Err(err).Msg("goroutine get error")
-		return err
-	}
+func worker(ctx context.Context, url string, client *http.Client, login string) error {
+	order := Order{}
+	var mu sync.Mutex
 
-	ch <- res
+	for {
+		res, err := client.Get(url)
+		log.Info().Msgf("in worker: %s", res.Status)
+		if err != nil {
+			log.Err(err).Msg("goroutine get error")
+			return err
+		}
+		defer res.Body.Close()
+		if res.StatusCode == http.StatusOK {
+			if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
+				log.Err(err).Msg("in worker json error")
+				return err
+			}
+		}
+		mu.Lock()
+		if order.Status == "PROCESSED" {
+			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+			if err != nil {
+				log.Err(err).Msg("database update error")
+				return err
+			}
+		} else {
+			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
+			if err != nil {
+				log.Err(err).Msg("database update error")
+				return err
+			}
+		}
+		mu.Unlock()
+	}
 	return nil
 }
 
@@ -155,43 +181,16 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	errGr, _ := errgroup.WithContext(ctx)
-	respCh := make(chan *http.Response, 1)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
 
 	errGr.Go(func() error {
-		return worker(url, &client, respCh)
+		return worker(ctx, url, &client, login)
 	})
 
 	err = errGr.Wait()
 	if err != nil {
 		return http.StatusInternalServerError, err
-	}
-	res := &http.Response{}
-	res = <-respCh
-
-	order := Order{}
-	defer res.Body.Close()
-
-	if res.StatusCode == http.StatusOK {
-		if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
-			log.Err(err).Msg("order json error")
-			return http.StatusInternalServerError, err
-		}
-	}
-
-	if order.Status == "PROCESSED" {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
-		if err != nil {
-			log.Err(err).Msg("database update error")
-			return http.StatusInternalServerError, err
-		}
-	} else {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
-		if err != nil {
-			log.Err(err).Msg("database update error")
-			return http.StatusInternalServerError, err
-		}
 	}
 
 	return http.StatusAccepted, nil
