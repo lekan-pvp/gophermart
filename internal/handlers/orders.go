@@ -26,6 +26,13 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if login == "" {
+		log.Info().Msg("post order unauthorized")
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	orderId, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
