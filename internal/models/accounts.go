@@ -158,13 +158,6 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	respCh := make(chan *http.Response, 1)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
-	client.Timeout = time.Second * 1
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 {
-			return errors.New("stop after five Redirect")
-		}
-		return nil
-	}
 
 	errGr.Go(func() error {
 		return worker(url, &client, respCh)
