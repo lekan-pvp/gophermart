@@ -103,76 +103,17 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-//func worker(ctx context.Context, login string, orderId []byte) error {
-//	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-//	log.Info().Msgf("%s", url)
-//	order := &Order{}
-//	orderChan := make(chan *http.Response, 1)
-//	errGr, _ := errgroup.WithContext(ctx)
-//
-//	for i := 0; i < 5; i++ {
-//		errGr.Go(func() error {
-//			return sendasync.SendGetAcync(url, orderChan)
-//		})
-//		err := errGr.Wait()
-//		if err != nil {
-//			log.Err(err).Msg("in goroutine")
-//			return err
-//		}
-//
-//		orderResponse := <-orderChan
-//		defer orderResponse.Body.Close()
-//
-//		fmt.Println(orderResponse.Body)
-//
-//		if orderResponse.StatusCode != http.StatusOK {
-//			continue
-//		}
-//
-//		if err = json.NewDecoder(orderResponse.Body).Decode(order); err != nil {
-//			log.Err(err).Msg("in goroutine json error")
-//			return err
-//		}
-//
-//		if order.Status == "INVALID" || order.Status == "PROCESSED" {
-//			break
-//		}
-//	}
-//
-//	tx, err := db.Beginx()
-//	if err != nil {
-//		log.Err(err).Msg("database update orders error")
-//		return err
-//	}
-//	_, errExec := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
-//	if errExec != nil {
-//		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-//			log.Err(rollbackErr).Msg("goroutine rollback error")
-//			return err
-//		}
-//		log.Err(errExec).Msg("goroutine exec error")
-//		return err
-//	}
-//	if err := tx.Commit(); err != nil {
-//		log.Err(err).Msg("goroutine commit error")
-//		return err
-//	}
-//	return nil
-//}
-
-func worker2(ctx context.Context, url string, order *Order, login string) error {
-	var response *http.Response
-	var err error
+func worker(url string, ch chan Order) error {
+	order := Order{}
 	for i := 0; i < 5; i++ {
-		response, err = http.Get(url)
+		resOrder, err := http.Get(url)
 		if err != nil {
+			log.Err(err).Msg("goroutine get error")
 			return err
 		}
-		if response.StatusCode != http.StatusOK {
-			continue
-		}
-		if err := json.NewDecoder(response.Body).Decode(order); err != nil {
-			response.StatusCode = http.StatusInternalServerError
+
+		if err := json.NewDecoder(resOrder.Body).Decode(&order); err != nil {
+			log.Err(err).Msg("goroutine json decode error")
 			return err
 		}
 
@@ -180,24 +121,7 @@ func worker2(ctx context.Context, url string, order *Order, login string) error 
 			break
 		}
 	}
-	tx, err := db.Beginx()
-	if err != nil {
-		log.Err(err).Msg("database update orders error")
-		return err
-	}
-	_, errExec := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
-	if errExec != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			log.Err(rollbackErr).Msg("goroutine rollback error")
-			return err
-		}
-		log.Err(errExec).Msg("goroutine exec error")
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		log.Err(err).Msg("goroutine commit error")
-		return err
-	}
+	ch <- order
 	return nil
 }
 
@@ -241,20 +165,23 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	errGr, _ := errgroup.WithContext(ctx)
-
-	//errGr.Go(func() error {
-	//	return worker(ctx, login, orderId)
-	//})
+	orderCh := make(chan Order, 1)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	//orderChan := make(chan *http.Response, 1)
-	order := &Order{}
 
 	errGr.Go(func() error {
-		return worker2(ctx, url, order, login)
+		return worker(url, orderCh)
 	})
 
 	err = errGr.Wait()
 	if err != nil {
+		return http.StatusInternalServerError, err
+	}
+	order := Order{}
+	order = <-orderCh
+
+	_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+	if err != nil {
+		log.Err(err).Msg("database update error")
 		return http.StatusInternalServerError, err
 	}
 
