@@ -41,6 +41,5 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 }
