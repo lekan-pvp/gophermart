@@ -169,7 +169,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusOK, nil
 	}
 
-	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, uploaded_at) VALUES ($1, $2, $3, $4);`, string(orderId), login, "NEW", time.Now().Format(time.RFC3339))
+	_, err = db.ExecContext(ctx, `INSERT INTO orders
+    (order_id, username, status, uploaded_at) 
+    VALUES ($1, $2, $3, $4);`,
+		string(orderId), login, "NEW", time.Now().Format(time.RFC3339))
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
 			log.Err(err).Msg("Unique Violation")
@@ -202,7 +205,13 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	//}
 
 	if order.Status == "PROCESSED" {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+		_, err = db.ExecContext(ctx, `UPDATE orders 
+SET  status=$1, accrual=$2, uploaded_at=$3 
+WHERE order_id=$4 AND username=$5; 
+UPDATE users 
+SET balance = balance + $2 
+WHERE username=$5;`,
+			order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
 		if err != nil {
 			log.Err(err).Msg("database update error")
 			return http.StatusInternalServerError, err
