@@ -103,23 +103,15 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(url string, client *http.Client, orderCh chan Order) error {
-	order := Order{}
-
+func worker(url string, client *http.Client, resp chan *http.Response) error {
 	res, err := client.Get(url)
 	log.Info().Msgf("in worker: %s", res.Status)
 	if err != nil {
 		log.Err(err).Msg("goroutine get error")
 		return err
 	}
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
-			log.Err(err).Msg("in worker json error")
-			return err
-		}
-	}
-	orderCh <- order
+
+	resp <- res
 	return nil
 }
 
@@ -280,10 +272,10 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 		errGr, _ := errgroup.WithContext(ctx)
 		url := cfg.GetAccuralSystemAddress() + "/api/orders/" + orderId
 		client := http.Client{}
-		orderCh := make(chan Order, 1)
+		resp := make(chan *http.Response, 1)
 
 		errGr.Go(func() error {
-			return worker(url, &client, orderCh)
+			return worker(url, &client, resp)
 		})
 
 		err := errGr.Wait()
@@ -291,8 +283,17 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 			return nil, err
 		}
 
-		order := Order{}
-		order = <-orderCh
+		var res *http.Response
+		res = <-resp
+		var order Order
+
+		defer res.Body.Close()
+		if res.StatusCode == http.StatusOK {
+			if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
+				log.Err(err).Msg("in worker json error")
+				return nil, err
+			}
+		}
 
 		if order.Status == "PROCESSED" {
 			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
