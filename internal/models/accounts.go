@@ -196,10 +196,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	order = <-orderCh
 
 	log.Info().Msgf("%+v", order)
-	if order.OrderId == "" {
-		log.Info().Msg("StatusNoContent")
-		return http.StatusNoContent, errors.New("no content")
-	}
+	//if order.OrderId == "" {
+	//	log.Info().Msg("StatusNoContent")
+	//	return http.StatusNoContent, errors.New("no content")
+	//}
 
 	if order.Status == "PROCESSED" {
 		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId)
