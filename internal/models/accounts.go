@@ -105,31 +105,32 @@ type Order struct {
 
 func worker(url string, orderCh chan Order) error {
 	var order Order
-	//for i := 0; i < 5; i++ {
-	res, err := http.Get(url)
-	if err != nil {
-		log.Err(err).Msg("goroutine get error")
-		return err
-	}
-
-	log.Info().Msgf("in worker: %s", res.Status)
-	if res.StatusCode == http.StatusNoContent {
-		order = Order{}
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode == http.StatusOK {
-		if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
-			log.Err(err).Msg("in goroutine json error")
+	for i := 0; i < 5; i++ {
+		res, err := http.Get(url)
+		if err != nil {
+			log.Err(err).Msg("goroutine get error")
 			return err
 		}
-	}
 
-	//if order.Status == "PROCESSED" || order.Status == "INVALID" {
-	//
-	//}
-	//}
+		log.Info().Msgf("in worker: %s", res.Status)
+		//if res.StatusCode == http.StatusNoContent {
+		//	order = Order{}
+		//	break
+		//}
+
+		defer res.Body.Close()
+
+		if res.StatusCode == http.StatusOK {
+			if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
+				log.Err(err).Msg("in goroutine json error")
+				return err
+			}
+		}
+
+		if order.Status == "PROCESSED" || order.Status == "INVALID" {
+			break
+		}
+	}
 	orderCh <- order
 	return nil
 }
@@ -182,14 +183,13 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	orderCh := make(chan Order, 1)
 
-	for i := 0; i < 5; i++ {
-		errGr.Go(func() error {
-			return worker(url, orderCh)
-		})
-		err = errGr.Wait()
-		if err != nil {
-			return http.StatusInternalServerError, err
-		}
+	errGr.Go(func() error {
+		return worker(url, orderCh)
+	})
+
+	err = errGr.Wait()
+	if err != nil {
+		return http.StatusInternalServerError, err
 	}
 
 	order := Order{}
