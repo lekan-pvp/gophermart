@@ -36,8 +36,8 @@ var schema = `
 CREATE TABLE IF NOT EXISTS users(
 	username VARCHAR UNIQUE NOT NULL,
 	password VARCHAR NOT NULL,
-	balance NUMERIC,
-	withdrawn NUMERIC, 
+	balance NUMERIC DEFAULT 0,
+	withdrawn NUMERIC DEFAULT 0, 
 	PRIMARY KEY (username)
 );`
 
