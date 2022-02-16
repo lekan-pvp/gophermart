@@ -133,6 +133,9 @@ func worker(url string, orderCh chan Order) error {
 }
 
 func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	number, err := strconv.Atoi(string(orderId))
 	if err != nil {
 		log.Err(err).Msg("order must be a number")
@@ -153,6 +156,8 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		}
 	}
 
+	log.Info().Msgf("other: %s  login: %s", another, login)
+
 	if another != "" && another != login {
 		return http.StatusConflict, nil
 	}
@@ -162,7 +167,6 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	_, err = db.ExecContext(ctx, `INSERT INTO orders(order_id, username, status, uploaded_at) VALUES ($1, $2, $3, $4);`, string(orderId), login, "NEW", time.Now().Format(time.RFC3339))
-
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
 			return http.StatusOK, err
@@ -187,8 +191,8 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	order := Order{}
 	order = <-orderCh
 
-	log.Info().Msgf("%v", order)
-	if (Order{}) == order {
+	log.Info().Msgf("%+v", order)
+	if order.OrderId == "" {
 		log.Info().Msg("StatusNoContent")
 		return http.StatusNoContent, nil
 	}
