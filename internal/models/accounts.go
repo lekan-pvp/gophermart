@@ -168,32 +168,32 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	var res *http.Response
-	res = <-resp
-
-	var order Order
-
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusOK {
-		if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
-			log.Err(err).Msg("in worker json error")
-			return http.StatusInternalServerError, err
-		}
-	}
-
-	if order.Status == "PROCESSED" {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
-		if err != nil {
-			log.Err(err).Msg("database update error")
-			return http.StatusInternalServerError, err
-		}
-	} else {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
-		if err != nil {
-			log.Err(err).Msg("database update error")
-			return http.StatusInternalServerError, err
-		}
-	}
+	//var res *http.Response
+	//res = <-resp
+	//
+	//var order Order
+	//
+	//defer res.Body.Close()
+	//if res.StatusCode == http.StatusOK {
+	//	if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
+	//		log.Err(err).Msg("in worker json error")
+	//		return http.StatusInternalServerError, err
+	//	}
+	//}
+	//
+	//if order.Status == "PROCESSED" {
+	//	_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+	//	if err != nil {
+	//		log.Err(err).Msg("database update error")
+	//		return http.StatusInternalServerError, err
+	//	}
+	//} else {
+	//	_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
+	//	if err != nil {
+	//		log.Err(err).Msg("database update error")
+	//		return http.StatusInternalServerError, err
+	//	}
+	//}
 
 	return http.StatusAccepted, nil
 }
