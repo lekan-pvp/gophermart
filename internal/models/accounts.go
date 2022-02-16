@@ -103,11 +103,12 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(url string, orderCh chan Order) error {
+func worker(url string, orderCh chan *Order) error {
 	var order Order
 	for i := 0; i < 5; i++ {
 		res, err := http.Get(url)
 		log.Info().Msgf("in worker: %s", res.Status)
+
 		if err != nil {
 			log.Err(err).Msg("goroutine get error")
 			return err
@@ -123,7 +124,7 @@ func worker(url string, orderCh chan Order) error {
 			break
 		}
 	}
-	orderCh <- order
+	orderCh <- &order
 	return nil
 }
 
@@ -168,7 +169,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 
 	errGr, _ := errgroup.WithContext(ctx)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	orderCh := make(chan Order, 1)
+	orderCh := make(chan *Order, 1)
 
 	errGr.Go(func() error {
 		return worker(url, orderCh)
@@ -179,8 +180,13 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	order := Order{}
+	order := &Order{}
 	order = <-orderCh
+
+	log.Info().Msgf("%v", order)
+	if order == nil {
+		return http.StatusNoContent, nil
+	}
 
 	if order.Status == "PROCESSED" {
 		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
@@ -390,5 +396,3 @@ VALUES ($3, $4, $5, $6);
 	}
 	return http.StatusOK, nil
 }
-
-//
