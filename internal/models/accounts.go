@@ -154,19 +154,19 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	errGr, _ := errgroup.WithContext(ctx)
-	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	client := http.Client{}
-	resp := make(chan *http.Response, 1)
-
-	errGr.Go(func() error {
-		return worker(url, &client, resp)
-	})
-
-	err = errGr.Wait()
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
+	//errGr, _ := errgroup.WithContext(ctx)
+	//url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+	//client := http.Client{}
+	//resp := make(chan *http.Response, 1)
+	//
+	//errGr.Go(func() error {
+	//	return worker(url, &client, resp)
+	//})
+	//
+	//err = errGr.Wait()
+	//if err != nil {
+	//	return http.StatusInternalServerError, err
+	//}
 
 	//var res *http.Response
 	//res = <-resp
@@ -285,11 +285,11 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 		orderId := row.Number
 		errGr, _ := errgroup.WithContext(ctx)
 		url := cfg.GetAccuralSystemAddress() + "/api/orders/" + orderId
-		client := http.Client{}
+		client := &http.Client{}
 		resp := make(chan *http.Response, 1)
 
 		errGr.Go(func() error {
-			return worker(url, &client, resp)
+			return worker(url, client, resp)
 		})
 
 		err := errGr.Wait()
