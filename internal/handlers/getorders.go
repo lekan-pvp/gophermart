@@ -49,6 +49,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(&res); err != nil {
 		log.Err(err).Msg("json encoding error")
 		w.Header().Add("Content-Type", "application/json")
@@ -56,6 +57,5 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
