@@ -103,13 +103,13 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
-func worker(url string, orderCh chan *Order) error {
-	var order *Order
+func worker(url string, orderCh chan Order) error {
+	var order Order
 	for i := 0; i < 5; i++ {
 		res, err := http.Get(url)
 		log.Info().Msgf("in worker: %s", res.Status)
 		if res.StatusCode == http.StatusNoContent {
-			order = nil
+			order = Order{}
 			break
 		}
 
@@ -118,7 +118,7 @@ func worker(url string, orderCh chan *Order) error {
 			return err
 		}
 		if res.StatusCode == http.StatusOK {
-			if err = json.NewDecoder(res.Body).Decode(order); err != nil {
+			if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
 				log.Err(err).Msg("in goroutine json error")
 				return err
 			}
@@ -173,7 +173,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 
 	errGr, _ := errgroup.WithContext(ctx)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
-	orderCh := make(chan *Order, 1)
+	orderCh := make(chan Order, 1)
 
 	errGr.Go(func() error {
 		return worker(url, orderCh)
@@ -184,11 +184,11 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	order := &Order{}
+	order := Order{}
 	order = <-orderCh
 
 	log.Info().Msgf("%v", order)
-	if order == nil {
+	if (Order{}) == order {
 		return http.StatusNoContent, nil
 	}
 
