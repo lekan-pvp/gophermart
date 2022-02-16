@@ -362,7 +362,7 @@ WHERE username = $3;`, balance.Current, balance.Withdrawn, login)
 
 	_, errWdwl := db.ExecContext(ctx, `
 INSERT INTO withdrawals(username, order_id, withdraw_sum, processed_at)
-VALUES ($3, $4, $5, $6);`, login, order, withdraw, time.Now().Format(time.RFC3339))
+VALUES ($1, $2, $3, $4);`, login, order, withdraw, time.Now().Format(time.RFC3339))
 	if errWdwl != nil {
 		log.Err(errWdwl).Msg("withdrawals error")
 		return http.StatusInternalServerError, errWdwl
