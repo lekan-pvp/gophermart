@@ -252,6 +252,7 @@ type Orders struct {
 
 func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 	orders := []Orders{}
+
 	rows, err := db.QueryxContext(ctx, `SELECT order_id, status, accrual, uploaded_at FROM orders WHERE username = $1`, login)
 	if err != nil {
 		log.Err(err).Msg("in GetOrder query error")
@@ -272,6 +273,40 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 	if err != nil {
 		log.Err(err).Msg("in GetOrders rows.Err()")
 		return nil, err
+	}
+
+	for _, row := range orders {
+		orderId := row.Number
+		errGr, _ := errgroup.WithContext(ctx)
+		url := cfg.GetAccuralSystemAddress() + "/api/orders/" + orderId
+		client := http.Client{}
+		orderCh := make(chan Order, 1)
+
+		errGr.Go(func() error {
+			return worker(url, &client, orderCh)
+		})
+
+		err := errGr.Wait()
+		if err != nil {
+			return nil, err
+		}
+
+		order := Order{}
+		order = <-orderCh
+
+		if order.Status == "PROCESSED" {
+			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+			if err != nil {
+				log.Err(err).Msg("database update error")
+				return nil, err
+			}
+		} else {
+			_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
+			if err != nil {
+				log.Err(err).Msg("database update error")
+				return nil, err
+			}
+		}
 	}
 
 	sort.Slice(orders, func(i, j int) bool {
