@@ -104,17 +104,21 @@ type Order struct {
 }
 
 func worker(url string, orderCh chan *Order) error {
-	var order Order
+	var order *Order
 	for i := 0; i < 5; i++ {
 		res, err := http.Get(url)
 		log.Info().Msgf("in worker: %s", res.Status)
+		if res.StatusCode == http.StatusNoContent {
+			order = nil
+			break
+		}
 
 		if err != nil {
 			log.Err(err).Msg("goroutine get error")
 			return err
 		}
 		if res.StatusCode == http.StatusOK {
-			if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
+			if err = json.NewDecoder(res.Body).Decode(order); err != nil {
 				log.Err(err).Msg("in goroutine json error")
 				return err
 			}
@@ -124,7 +128,7 @@ func worker(url string, orderCh chan *Order) error {
 			break
 		}
 	}
-	orderCh <- &order
+	orderCh <- order
 	return nil
 }
 
