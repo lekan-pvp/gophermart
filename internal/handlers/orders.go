@@ -44,6 +44,7 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 	statusCode, err := models.PostOrder(ctx, login, orderId)
 	if err != nil {
 		log.Err(err).Int("PostOrder error, status code: %d", statusCode)
+		w.Header().Add("Content-Type", "application/json")
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
