@@ -29,7 +29,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 
 	balance, err := models.GetBalance(ctx, login)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("get balance error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

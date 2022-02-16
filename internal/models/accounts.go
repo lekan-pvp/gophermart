@@ -237,7 +237,7 @@ type Balance struct {
 func GetBalance(ctx context.Context, login string) (Balance, error) {
 	res := Balance{}
 	log.Info().Msgf("balance login: %s", login)
-	if err := db.GetContext(ctx, res, `SELECT balance, withdrawn FROM users WHERE username = $1`, login); err != nil {
+	if err := db.GetContext(ctx, &res, `SELECT balance, withdrawn FROM users WHERE username = $1`, login); err != nil {
 		return Balance{}, err
 	}
 	return res, nil
