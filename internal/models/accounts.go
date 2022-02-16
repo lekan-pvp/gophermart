@@ -299,6 +299,7 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 
 		var res *http.Response
 		res = <-resp
+
 		var order Order
 
 		defer res.Body.Close()
