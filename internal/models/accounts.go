@@ -113,10 +113,10 @@ func worker(url string, orderCh chan Order) error {
 		}
 
 		log.Info().Msgf("in worker: %s", res.Status)
-		//if res.StatusCode == http.StatusNoContent {
-		//	order = Order{}
-		//	break
-		//}
+		if res.StatusCode == http.StatusNoContent {
+			order = Order{}
+			break
+		}
 
 		defer res.Body.Close()
 
@@ -198,7 +198,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	log.Info().Msgf("%+v", order)
 	if order.OrderId == "" {
 		log.Info().Msg("StatusNoContent")
-		return http.StatusNoContent, nil
+		return http.StatusNoContent, errors.New("no content")
 	}
 
 	if order.Status == "PROCESSED" {
