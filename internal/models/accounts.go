@@ -60,11 +60,7 @@ CREATE TABLE IF NOT EXISTS withdrawals(
 	order_id VARCHAR NOT NULL,
 	withdraw_sum NUMERIC,
 	processed_at TIMESTAMP NOT NULL,
-	PRIMARY KEY (operation_id),
-    FOREIGN KEY (username)
-    	REFERENCES users (username),
-    FOREIGN KEY (order_id)
-    	REFERENCES orders (order_id));
+	PRIMARY KEY (operation_id);
 `
 
 func InitDB(databaseURI string) error {
