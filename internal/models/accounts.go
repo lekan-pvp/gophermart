@@ -212,7 +212,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 			return http.StatusInternalServerError, err
 		}
 
-		_, err = db.ExecContext(ctx, `UPDATE users SET balance=balance+5 WHERE username=$2`, order.Accrual, login)
+		_, err = db.ExecContext(ctx, `UPDATE users SET balance=balance+5 WHERE username=$1`, login)
 		if err != nil {
 			log.Err(err).Msg("user balance update error")
 			return http.StatusInternalServerError, err
