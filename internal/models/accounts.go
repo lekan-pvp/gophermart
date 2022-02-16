@@ -201,39 +201,15 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	if order.Status == "PROCESSED" {
-		tx, err := db.Beginx()
+		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId)
 		if err != nil {
-			return http.StatusInternalServerError, err
-		}
-		_, errEx := tx.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId)
-		if errEx != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Err(rollbackErr).Msg("rollback error")
-				return http.StatusInternalServerError, err
-			}
-			log.Err(errEx).Msg("update error")
-			return http.StatusInternalServerError, err
-		}
-		if err := tx.Commit(); err != nil {
-			log.Err(err).Msg("commit error")
+			log.Err(err).Msg("database update error")
 			return http.StatusInternalServerError, err
 		}
 	} else {
-		tx, err := db.Beginx()
+		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3`, order.Status, time.Now().Format(time.RFC3339), order.OrderId)
 		if err != nil {
-			return http.StatusInternalServerError, err
-		}
-		_, errEx := tx.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3`, order.Status, time.Now().Format(time.RFC3339), order.OrderId)
-		if errEx != nil {
-			if rollbackErr := tx.Rollback(); rollbackErr != nil {
-				log.Err(rollbackErr).Msg("rollback error")
-				return http.StatusInternalServerError, err
-			}
-			log.Err(errEx).Msg("update error")
-			return http.StatusInternalServerError, err
-		}
-		if err := tx.Commit(); err != nil {
-			log.Err(err).Msg("commit error")
+			log.Err(err).Msg("database update error")
 			return http.StatusInternalServerError, err
 		}
 	}
