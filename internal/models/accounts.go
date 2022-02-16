@@ -351,28 +351,22 @@ func Withdraw(ctx context.Context, login string, wdraw *Wdraw) (int, error) {
 	balance.Current = balance.Current - withdraw
 	balance.Withdrawn = balance.Withdrawn + withdraw
 
-	tx, err := db.Beginx()
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-	_, errExec := tx.ExecContext(ctx, `
+	_, errUser := db.ExecContext(ctx, `
 UPDATE users 
 SET balance = $1, withdrawn = $2 
-WHERE username = $3;
+WHERE username = $3;`, balance.Current, balance.Withdrawn, login)
+	if errUser != nil {
+		log.Err(errUser).Msg("user balance update error")
+		return http.StatusInternalServerError, errUser
+	}
+
+	_, errWdwl := db.ExecContext(ctx, `
 INSERT INTO withdrawals(username, order_id, withdraw_sum, processed_at)
-VALUES ($3, $4, $5, $6);
-`, balance.Current, balance.Withdrawn, login, order, withdraw, time.Now().Format(time.RFC3339))
-	if errExec != nil {
-		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			log.Err(rollbackErr).Msg("rollback error")
-			return http.StatusInternalServerError, err
-		}
-		log.Err(errExec).Msg("update error")
-		return http.StatusInternalServerError, err
+VALUES ($3, $4, $5, $6);`, login, order, withdraw, time.Now().Format(time.RFC3339))
+	if errWdwl != nil {
+		log.Err(errWdwl).Msg("withdrawals error")
+		return http.StatusInternalServerError, errWdwl
 	}
-	if err := tx.Commit(); err != nil {
-		log.Err(err).Msg("commit error")
-		return http.StatusInternalServerError, err
-	}
+
 	return http.StatusOK, nil
 }
