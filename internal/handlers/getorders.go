@@ -29,7 +29,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if login == "" {
-		log.Info().Msg("get ordes unauthorized")
+		log.Info().Msg("get orders unauthorized")
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -37,20 +37,21 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 
 	res, err := models.GetOrders(ctx, login)
 	if err != nil {
+		if len(res) == 0 {
+			log.Info().Msg("no data for response")
+			w.Header().Add("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		log.Err(err).Msg("get orders database error")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if len(res) == 0 {
-		log.Info().Msg("no data for response")
 		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNoContent)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(res); err != nil {
 		log.Err(err).Msg("json encoding error")
+		w.Header().Add("Content-Type", "application/json")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

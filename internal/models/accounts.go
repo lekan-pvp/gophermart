@@ -267,6 +267,10 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 		return nil, err
 	}
 
+	if len(orders) == 0 {
+		return nil, errors.New("204 StatusNoContent")
+	}
+
 	for _, row := range orders {
 		orderId := row.Number
 		errGr, _ := errgroup.WithContext(ctx)
