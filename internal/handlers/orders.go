@@ -48,6 +48,7 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+
 		log.Err(err).Int("PostOrder error, status code: %d", statusCode)
 		w.Header().Add("Content-Type", "application/json")
 		http.Error(w, err.Error(), statusCode)
