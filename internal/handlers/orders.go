@@ -33,15 +33,15 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderId, err := io.ReadAll(r.Body)
+	orderID, err := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		log.Err(err).Msg("take orderId error")
+		log.Err(err).Msg("take orderID error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	statusCode, err := models.PostOrder(ctx, login, orderId)
+	statusCode, err := models.PostOrder(ctx, login, orderID)
 	if err != nil {
 		if statusCode == http.StatusNoContent {
 			w.Header().Add("Content-Type", "application/json")

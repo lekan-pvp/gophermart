@@ -95,7 +95,7 @@ func Signin(ctx context.Context, creds *Credentials) error {
 }
 
 type Order struct {
-	OrderId string  `json:"order" db:"order_id"`
+	OrderID string  `json:"order" db:"order_id"`
 	Status  string  `json:"status" db:"status"`
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
@@ -132,11 +132,11 @@ func worker(url string, orderCh chan Order) error {
 	return nil
 }
 
-func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
+func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	number, err := strconv.Atoi(string(orderId))
+	number, err := strconv.Atoi(string(orderID))
 	if err != nil {
 		log.Err(err).Msg("order must be a number")
 		return http.StatusInternalServerError, err
@@ -150,7 +150,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 
 	var other string
 
-	if err := db.GetContext(ctx, &other, `SELECT username FROM orders WHERE order_id=$1`, string(orderId)); err != nil {
+	if err := db.GetContext(ctx, &other, `SELECT username FROM orders WHERE order_id=$1`, string(orderID)); err != nil {
 		if errors.Is(err, pgerror.NoDataFound(err)) {
 			log.Err(err).Msg("its ok")
 		}
@@ -169,7 +169,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	_, err = db.ExecContext(ctx, `INSERT INTO orders
     (order_id, username, status, uploaded_at) 
     VALUES ($1, $2, $3, $4);`,
-		string(orderId), login, "NEW", time.Now().Format(time.RFC3339))
+		string(orderID), login, "NEW", time.Now().Format(time.RFC3339))
 	if err != nil {
 		if errors.Is(err, pgerror.UniqueViolation(err)) {
 			log.Err(err).Msg("Unique Violation")
@@ -180,7 +180,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	}
 
 	errGr, _ := errgroup.WithContext(ctx)
-	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
+	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderID)
 	orderCh := make(chan Order, 1)
 
 	errGr.Go(func() error {
@@ -196,14 +196,14 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	order = <-orderCh
 
 	log.Info().Msgf("%+v", order)
-	//if order.OrderId == "" {
+	//if order.OrderID == "" {
 	//	log.Info().Msg("StatusNoContent")
 	//	return http.StatusNoContent, errors.New("no content")
 	//}
 
 	if order.Status == "PROCESSED" {
 		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5;`,
-			order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
+			order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderID, login)
 		if err != nil {
 			log.Err(err).Msg("database update error")
 			return http.StatusInternalServerError, err
@@ -216,7 +216,7 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		}
 
 	} else {
-		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderId, login)
+		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, uploaded_at=$2 WHERE order_id=$3 AND username=$4`, order.Status, time.Now().Format(time.RFC3339), order.OrderID, login)
 		if err != nil {
 			log.Err(err).Msg("database update error")
 			return http.StatusInternalServerError, err
