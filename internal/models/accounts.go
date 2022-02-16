@@ -157,10 +157,10 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 	errGr, _ := errgroup.WithContext(ctx)
 	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderId)
 	client := http.Client{}
-	orderCh := make(chan Order, 1)
+	resp := make(chan *http.Response, 1)
 
 	errGr.Go(func() error {
-		return worker(url, &client, orderCh)
+		return worker(url, &client, resp)
 	})
 
 	err = errGr.Wait()
@@ -168,8 +168,18 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusInternalServerError, err
 	}
 
-	order := Order{}
-	order = <-orderCh
+	var res *http.Response
+	res = <-resp
+
+	var order Order
+
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(res.Body).Decode(&order); err != nil {
+			log.Err(err).Msg("in worker json error")
+			return http.StatusInternalServerError, err
+		}
+	}
 
 	if order.Status == "PROCESSED" {
 		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5`, order.Status, order.Accrual, time.Now().Format(time.RFC3339), order.OrderId, login)
