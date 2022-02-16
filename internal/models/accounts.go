@@ -62,10 +62,7 @@ CREATE TABLE IF NOT EXISTS withdrawals(
 	processed_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (operation_id),
     FOREIGN KEY (username)
-    	REFERENCES users (username),
-    FOREIGN KEY (order_id)
-    	REFERENCES orders (order_id));
-`
+    	REFERENCES users (username));`
 
 func InitDB(databaseURI string) error {
 	db = sqlx.MustConnect("postgres", databaseURI)
@@ -361,7 +358,7 @@ WHERE username = $3;`, balance.Current, balance.Withdrawn, login)
 	}
 
 	_, errWdwl := db.ExecContext(ctx, `
-INSERT INTO withdrawals(username, order_id, withdraw_sum, processed_at)
+INSERT INTO withdrawals(username, order_id, withdraw_sum, processed_at) 
 VALUES ($1, $2, $3, $4);`, login, order, withdraw, time.Now().Format(time.RFC3339))
 	if errWdwl != nil {
 		log.Err(errWdwl).Msg("withdrawals error")
