@@ -107,16 +107,19 @@ func worker(url string, orderCh chan Order) error {
 	var order Order
 	for i := 0; i < 5; i++ {
 		res, err := http.Get(url)
+		if err != nil {
+			log.Err(err).Msg("goroutine get error")
+			return err
+		}
+
 		log.Info().Msgf("in worker: %s", res.Status)
 		if res.StatusCode == http.StatusNoContent {
 			order = Order{}
 			break
 		}
 
-		if err != nil {
-			log.Err(err).Msg("goroutine get error")
-			return err
-		}
+		defer res.Body.Close()
+
 		if res.StatusCode == http.StatusOK {
 			if err = json.NewDecoder(res.Body).Decode(&order); err != nil {
 				log.Err(err).Msg("in goroutine json error")
@@ -148,21 +151,21 @@ func PostOrder(ctx context.Context, login string, orderId []byte) (int, error) {
 		return http.StatusUnprocessableEntity, nil
 	}
 
-	var another string
+	var other string
 
-	if err := db.GetContext(ctx, &another, `SELECT username FROM orders WHERE order_id=$1`, string(orderId)); err != nil {
+	if err := db.GetContext(ctx, &other, `SELECT username FROM orders WHERE order_id=$1`, string(orderId)); err != nil {
 		if errors.Is(err, pgerror.NoDataFound(err)) {
 			log.Err(err).Msg("its ok")
 		}
 	}
 
-	log.Info().Msgf("other: %s  login: %s", another, login)
+	log.Info().Msgf("other: %s  login: %s", other, login)
 
-	if another != "" && another != login {
+	if other != "" && other != login {
 		return http.StatusConflict, nil
 	}
 
-	if another != "" && another == login {
+	if other != "" && other == login {
 		return http.StatusOK, nil
 	}
 
