@@ -16,6 +16,10 @@ type Config struct {
 var singleton *Config
 
 func New() *Config {
+	var runAddress string
+	var databaseURI string
+	var accrualSystemAddress string
+
 	var once sync.Once
 	once.Do(func() {
 		log := logger.New()
@@ -23,14 +27,15 @@ func New() *Config {
 		if err := env.Parse(singleton); err != nil {
 			log.Fatal().Err(err).Msg("can not parse Config")
 		}
-		runAddress := flag.String("a", singleton.RunAddress, "адрес и порт запуска сервиса")
-		databaseURI := flag.String("d", singleton.DatabaseURI, "URI подключения к БД")
-		accrualSystemAddress := flag.String("r", singleton.AccrualSystemAddress, "адрес системы расчета начислений")
+
+		flag.StringVar(&runAddress, "a", singleton.RunAddress, "адрес и порт запуска сервиса")
+		flag.StringVar(&databaseURI, "d", singleton.DatabaseURI, "URI подключения к БД")
+		flag.StringVar(&accrualSystemAddress, "r", singleton.AccrualSystemAddress, "адрес системы расчета начислений")
 
 		flag.Parse()
-		singleton.RunAddress = *runAddress
-		singleton.DatabaseURI = *databaseURI
-		singleton.AccrualSystemAddress = *accrualSystemAddress
+		singleton.RunAddress = runAddress
+		singleton.DatabaseURI = databaseURI
+		singleton.AccrualSystemAddress = accrualSystemAddress
 	})
 	return singleton
 }

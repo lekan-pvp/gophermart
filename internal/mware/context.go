@@ -3,6 +3,7 @@ package mware
 import (
 	"context"
 	"net/http"
+	"time"
 )
 
 func SetContext(next http.Handler) http.Handler {
@@ -11,7 +12,13 @@ func SetContext(next http.Handler) http.Handler {
 		defer cancel()
 
 		go func() {
-			<-ctx.Done()
+			select {
+			case <-time.After(5 * time.Second):
+				cancel()
+				return
+			case <-ctx.Done():
+				return
+			}
 		}()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
