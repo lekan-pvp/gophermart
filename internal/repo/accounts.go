@@ -75,6 +75,7 @@ func New(databaseURI string) error {
 	return db.Ping()
 }
 
+// Signup
 func Signup(ctx context.Context, creds *Credentials) error {
 
 	_, err := db.ExecContext(ctx, `INSERT INTO users(username, password) VALUES ($1, $2)`, creds.Login, creds.Password)
@@ -85,6 +86,7 @@ func Signup(ctx context.Context, creds *Credentials) error {
 	return nil
 }
 
+// Signin
 func Signin(ctx context.Context, creds *Credentials) error {
 	temp := &Credentials{}
 	if err := db.GetContext(ctx, temp, `SELECT username, password FROM users WHERE username = $1`, creds.Login); err != nil {
@@ -100,6 +102,7 @@ type Order struct {
 	Accrual float32 `json:"accrual,omitempty" db:"accrual"`
 }
 
+// worker
 func worker(url string, orderCh chan Order) error {
 	var order Order
 	for i := 0; i < 5; i++ {
@@ -132,6 +135,7 @@ func worker(url string, orderCh chan Order) error {
 	return nil
 }
 
+// PostOrder
 func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -180,6 +184,7 @@ func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	}
 
 	errGr, _ := errgroup.WithContext(ctx)
+
 	url := config.GetAccrualSystemAddress() + "/api/orders/" + string(orderID)
 	orderCh := make(chan Order, 1)
 
@@ -226,11 +231,13 @@ func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	return http.StatusAccepted, nil
 }
 
+// Balance
 type Balance struct {
 	Current   float32 `json:"current" db:"balance"`
 	Withdrawn float32 `json:"withdrawn" db:"withdrawn"`
 }
 
+// GetBalance
 func GetBalance(ctx context.Context, login string) (Balance, error) {
 	res := Balance{}
 	log.Info().Msgf("balance login: %s", login)
@@ -240,6 +247,7 @@ func GetBalance(ctx context.Context, login string) (Balance, error) {
 	return res, nil
 }
 
+// Withdrawals
 type Withdrawals struct {
 	Order       string    `json:"order" db:"order_id"`
 	Sum         float32   `json:"sum" db:"withdraw_sum"`
@@ -273,6 +281,7 @@ func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 	return withdrawals, nil
 }
 
+// Orders
 type Orders struct {
 	Number     string    `json:"number" db:"order_id"`
 	Status     string    `json:"status,omitempty" db:"status"`
@@ -280,6 +289,7 @@ type Orders struct {
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 }
 
+// GetOrders
 func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 	orders := []Orders{}
 
@@ -315,11 +325,13 @@ func GetOrders(ctx context.Context, login string) ([]Orders, error) {
 	return orders, nil
 }
 
+// Wdraw
 type Wdraw struct {
 	Order string  `json:"order"`
 	Sum   float32 `json:"sum"`
 }
 
+// Withdraw
 func Withdraw(ctx context.Context, login string, wdraw *Wdraw) (int, error) {
 	order := wdraw.Order
 	withdraw := wdraw.Sum
