@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"io"
@@ -9,8 +8,7 @@ import (
 )
 
 func Orders(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
+	ctx := r.Context()
 
 	session, err := sessions.Get(r)
 	if err != nil {
