@@ -17,6 +17,7 @@ var log zerolog.Logger
 var c *config.Config
 
 func main() {
+	logger.InitLogger()
 	c = config.New()
 	log = logger.New()
 	err := repo.New(c.DatabaseURI)

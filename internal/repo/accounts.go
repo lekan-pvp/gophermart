@@ -8,10 +8,10 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
 	"github.com/lekan/gophermart/internal/config"
+	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/luhn"
 	_ "github.com/lib/pq"
 	"github.com/omeid/pgerror"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"sort"
@@ -31,7 +31,7 @@ type Credentials struct {
 
 var db *sqlx.DB
 
-//var log = logger.New()
+var log = logger.New()
 
 var schema = `
 CREATE TABLE IF NOT EXISTS users(

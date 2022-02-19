@@ -11,7 +11,7 @@ import (
 
 var l zerolog.Logger
 
-func InitLogger() zerolog.Logger {
+func InitLogger() {
 
 	var once sync.Once
 	once.Do(func() {
@@ -31,9 +31,8 @@ func InitLogger() zerolog.Logger {
 
 		l = zerolog.New(output).With().Timestamp().Logger()
 	})
-	return l
 }
 
 func New() zerolog.Logger {
-	return InitLogger()
+	return l
 }
