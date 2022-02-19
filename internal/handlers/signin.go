@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"net/http"
 	"time"
@@ -15,7 +15,7 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	creds := &models.Credentials{}
+	creds := &repo.Credentials{}
 
 	//получаем body
 	if err := json.NewDecoder(r.Body).Decode(creds); err != nil {
@@ -26,7 +26,7 @@ func Signin(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// ищем в базе данных
-	err := models.Signin(ctx, creds)
+	err := repo.Signin(ctx, creds)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Info().Msg("user does not exist")

@@ -4,4 +4,4 @@ import (
 	"github.com/lekan/gophermart/internal/logger"
 )
 
-var log = logger.GetLogger()
+var log = logger.New()

@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"net/http"
 	"time"
@@ -28,7 +28,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req := &models.Wdraw{}
+	req := &repo.Wdraw{}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Err(err).Msg("json decode error")
@@ -36,7 +36,7 @@ func Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusCode, err := models.Withdraw(ctx, login, req)
+	statusCode, err := repo.Withdraw(ctx, login, req)
 	if err != nil {
 		log.Err(err)
 		http.Error(w, err.Error(), statusCode)

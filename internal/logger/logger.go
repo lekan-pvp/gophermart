@@ -29,6 +29,6 @@ func init() {
 
 }
 
-func GetLogger() zerolog.Logger {
+func New() zerolog.Logger {
 	return l
 }

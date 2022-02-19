@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"net/http"
 	"time"
@@ -27,7 +27,7 @@ func GetBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	balance, err := models.GetBalance(ctx, login)
+	balance, err := repo.GetBalance(ctx, login)
 	if err != nil {
 		log.Err(err).Msg("get balance error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)

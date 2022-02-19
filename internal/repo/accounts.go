@@ -1,4 +1,4 @@
-package models
+package repo
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"github.com/jmoiron/sqlx"
-	"github.com/lekan/gophermart/internal/cfg"
+	"github.com/lekan/gophermart/internal/config"
 	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/luhn"
 	_ "github.com/lib/pq"
@@ -30,7 +30,7 @@ type Credentials struct {
 }
 
 var db *sqlx.DB
-var log = logger.GetLogger()
+var log = logger.New()
 
 var schema = `
 CREATE TABLE IF NOT EXISTS users(
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS withdrawals(
     FOREIGN KEY (username)
     	REFERENCES users (username));`
 
-func InitDB(databaseURI string) error {
+func New(databaseURI string) error {
 	db = sqlx.MustConnect("postgres", databaseURI)
 
 	db.MustExec(schema)
@@ -180,7 +180,7 @@ func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	}
 
 	errGr, _ := errgroup.WithContext(ctx)
-	url := cfg.GetAccuralSystemAddress() + "/api/orders/" + string(orderID)
+	url := config.GetAccrualSystemAddress() + "/api/orders/" + string(orderID)
 	orderCh := make(chan Order, 1)
 
 	errGr.Go(func() error {

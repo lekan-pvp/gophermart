@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"net/http"
 	"time"
@@ -35,7 +35,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := models.GetOrders(ctx, login)
+	res, err := repo.GetOrders(ctx, login)
 	if err != nil {
 		if len(res) == 0 {
 			log.Info().Msg("no data for response")

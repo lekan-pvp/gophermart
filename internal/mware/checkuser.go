@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-var log = logger.GetLogger()
+var log = logger.New()
 
 func CheckUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

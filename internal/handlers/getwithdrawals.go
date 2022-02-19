@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"net/http"
 	"time"
@@ -28,7 +28,7 @@ func GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := models.GetWithdrawals(ctx, login)
+	res, err := repo.GetWithdrawals(ctx, login)
 	if err != nil {
 		log.Err(err).Msg("database error")
 		http.Error(w, err.Error(), http.StatusInternalServerError)

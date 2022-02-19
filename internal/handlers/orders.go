@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"github.com/lekan/gophermart/internal/models"
+	"github.com/lekan/gophermart/internal/repo"
 	"github.com/lekan/gophermart/internal/sessions"
 	"io"
 	"net/http"
@@ -41,7 +41,7 @@ func Orders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	statusCode, err := models.PostOrder(ctx, login, orderID)
+	statusCode, err := repo.PostOrder(ctx, login, orderID)
 	if err != nil {
 		if statusCode == http.StatusNoContent {
 			w.Header().Add("Content-Type", "application/json")

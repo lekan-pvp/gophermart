@@ -3,19 +3,21 @@ package main
 import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/lekan/gophermart/internal/cfg"
+	"github.com/lekan/gophermart/internal/config"
 	"github.com/lekan/gophermart/internal/handlers"
 	"github.com/lekan/gophermart/internal/logger"
-	"github.com/lekan/gophermart/internal/models"
 	"github.com/lekan/gophermart/internal/mware"
+	"github.com/lekan/gophermart/internal/repo"
 	"net/http"
 )
 
-func main() {
-	c := cfg.GetConfig()
-	log := logger.GetLogger()
+var c *config.Config
 
-	err := models.InitDB(c.DatabaseURI)
+func main() {
+	c = config.New()
+	log := logger.New()
+
+	err := repo.New(c.DatabaseURI)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
