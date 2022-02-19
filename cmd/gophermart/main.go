@@ -28,6 +28,7 @@ func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(mware.CheckUser)
+	router.Use(mware.SetContext)
 
 	router.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", handlers.Signup)
