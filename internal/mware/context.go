@@ -11,10 +11,7 @@ func SetContext(next http.Handler) http.Handler {
 		defer cancel()
 
 		go func() {
-			select {
-			case <-ctx.Done():
-				return
-			}
+			<-ctx.Done()
 		}()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
