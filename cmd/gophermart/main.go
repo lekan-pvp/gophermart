@@ -8,15 +8,17 @@ import (
 	"github.com/lekan/gophermart/internal/logger"
 	"github.com/lekan/gophermart/internal/mware"
 	"github.com/lekan/gophermart/internal/repo"
+	"github.com/rs/zerolog"
 	"net/http"
 )
+
+var log zerolog.Logger
 
 var c *config.Config
 
 func main() {
 	c = config.New()
-	log := logger.New()
-
+	log = logger.New()
 	err := repo.New(c.DatabaseURI)
 	if err != nil {
 		log.Fatal().Err(err)
