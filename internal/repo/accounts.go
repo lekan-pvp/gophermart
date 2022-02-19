@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,38 +34,16 @@ var db *sqlx.DB
 
 var log = logger.New()
 
-var schema = `
-CREATE TABLE IF NOT EXISTS users(
-	username VARCHAR UNIQUE NOT NULL,
-	password VARCHAR NOT NULL,
-	balance NUMERIC DEFAULT 0,
-	withdrawn NUMERIC DEFAULT 0, 
-	PRIMARY KEY (username)
-);`
+//go:embed users_req.txt
+var schema string
 
-var orders = `
-CREATE TABLE IF NOT EXISTS orders(
-	order_id VARCHAR UNIQUE NOT NULL,
-	username VARCHAR NOT NULL, 
-	status VARCHAR DEFAULT '',
-	accrual NUMERIC DEFAULT 0,
-	uploaded_at TIMESTAMP,
-	PRIMARY KEY (order_id, username),
-    FOREIGN KEY (username)
-    	REFERENCES users (username)
-	);`
+//go:embed orders.txt
+var orders string
 
-var withdrawals = `
-CREATE TABLE IF NOT EXISTS withdrawals(
-    operation_id SERIAL,
-	username VARCHAR NOT NULL,
-	order_id VARCHAR NOT NULL,
-	withdraw_sum NUMERIC,
-	processed_at TIMESTAMP NOT NULL,
-	PRIMARY KEY (operation_id),
-    FOREIGN KEY (username)
-    	REFERENCES users (username));`
+//go:embed withdrawals.txt
+var withdrawals string
 
+// New
 func New(databaseURI string) error {
 	db = sqlx.MustConnect("postgres", databaseURI)
 
@@ -97,6 +76,7 @@ func Signin(ctx context.Context, creds *Credentials) error {
 	return nil
 }
 
+// Order
 type Order struct {
 	OrderID string  `json:"order" db:"order_id"`
 	Status  string  `json:"status" db:"status"`
@@ -202,10 +182,6 @@ func PostOrder(ctx context.Context, login string, orderID []byte) (int, error) {
 	order = <-orderCh
 
 	log.Info().Msgf("%+v", order)
-	//if order.OrderID == "" {
-	//	log.Info().Msg("StatusNoContent")
-	//	return http.StatusNoContent, errors.New("no content")
-	//}
 
 	if order.Status == "PROCESSED" {
 		_, err = db.ExecContext(ctx, `UPDATE orders SET status=$1, accrual=$2, uploaded_at=$3 WHERE order_id=$4 AND username=$5;`,
@@ -255,6 +231,7 @@ type Withdrawals struct {
 	ProcessedAt time.Time `json:"processed_at" db:"processed_at"`
 }
 
+// GetWithdrawals
 func GetWithdrawals(ctx context.Context, login string) ([]Withdrawals, error) {
 	withdrawals := []Withdrawals{}
 	rows, err := db.QueryxContext(ctx, `SELECT order_id, withdraw_sum, processed_at FROM withdrawals WHERE username = $1`, login)
