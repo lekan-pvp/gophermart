@@ -1,5 +1,6 @@
 package luhn
 
+// CalculateLuhn
 func CalculateLuhn(number int) int {
 	checkNumber := checksum(number)
 
@@ -14,6 +15,7 @@ func Valid(number int) bool {
 	return (number%10+checksum(number/10))%10 == 0
 }
 
+// checksum
 func checksum(number int) int {
 	var luhn int
 
